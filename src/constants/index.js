@@ -1,10 +1,5 @@
 export const mySocials = [
   {
-    name: "WhatsApp",
-    href: "https://wa.me/918757059888", // Based on your number: 8757059888
-    icon: "/assets/socials/whatsApp.svg",
-  },
-  {
     name: "LinkedIn",
     href: "https://www.linkedin.com/in/chandi-charan-mahato-3631a7178/",
     icon: "/assets/socials/linkedIn.svg",
@@ -29,6 +24,58 @@ export const mySocials = [
 export const myProjects = [
   {
     id: 1,
+    title: "URL Shortener Service – Scalable MERN Application",
+    description:
+      "A full-stack URL shortening service built with the MERN stack, featuring custom short links, analytics, expiration handling, rate limiting, and Redis-based caching using FlashKV for high-performance redirection.",
+    href: "https://github.com/Chandi977/MERN_URL_shortner",
+    image: "/assets/projects/url-shortener.png",
+    tags: [
+      { id: 1, name: "MERN", path: "/assets/logos/mern.svg" },
+      { id: 2, name: "Redis / FlashKV", path: "/assets/logos/redis.svg" },
+      { id: 3, name: "JWT", path: "/assets/logos/jwt.svg" },
+      { id: 4, name: "Caching", path: "/assets/logos/cache.svg" },
+      { id: 5, name: "System Design", path: "/assets/logos/system-design.svg" },
+    ],
+  },
+
+  {
+    id: 2,
+    title: "FlashKV – High-Performance In-Memory Key-Value Store",
+    description:
+      "A custom-built, Redis-inspired in-memory key–value store developed in C++ to understand low-latency data systems, concurrency, and cache design. Supports core data operations with thread-safe execution and TTL-based expiration.",
+    href: "https://github.com/Chandi977/FlashKv",
+    image: "/assets/projects/flashkv.png",
+    tags: [
+      { id: 1, name: "C++", path: "/assets/logos/cpp.svg" },
+      { id: 2, name: "Multithreading", path: "/assets/logos/thread.svg" },
+      { id: 3, name: "Concurrency", path: "/assets/logos/concurrency.svg" },
+      {
+        id: 4,
+        name: "Systems Design",
+        path: "/assets/logos/system-design.svg",
+      },
+    ],
+  },
+
+  {
+    id: 3,
+    title: "YouTube Clone – End-to-End Video Streaming Platform",
+    description:
+      "A full-stack, production-grade video streaming platform built with the MERN stack, supporting secure video uploads, streaming, user authentication, subscriptions, and scalable backend architecture.",
+    href: "https://github.com/Chandi977/Youtube-frontend",
+    image: "/assets/projects/youtube.png",
+    tags: [
+      { id: 1, name: "React", path: "/assets/logos/react.svg" },
+      { id: 2, name: "Node.js", path: "/assets/logos/nodejs.svg" },
+      { id: 3, name: "Express", path: "/assets/logos/express.svg" },
+      { id: 4, name: "MongoDB", path: "/assets/logos/mongodb.svg" },
+      { id: 5, name: "JWT", path: "/assets/logos/jwt.svg" },
+      { id: 6, name: "Cloudinary", path: "/assets/logos/cloudinary.svg" },
+    ],
+  },
+
+  {
+    id: 4,
     title: "Zenith – AR Emergency Route Simulator",
     description:
       "Ambulance AR navigation system using a MERN backend, Google Maps API, WebSockets, and Firebase notifications.",
@@ -41,22 +88,9 @@ export const myProjects = [
       { id: 4, name: "Google Maps API", path: "/assets/logos/googlemaps.svg" },
     ],
   },
+
   {
-    id: 2,
-    title: "Youtube-Backend",
-    description:
-      "Backend for a YouTube clone using Node.js, Express, MongoDB, JWT, and Cloudinary.",
-    href: "https://github.com/Chandi977/Youtube-Backend",
-    image: "/assets/projects/youtube.png",
-    tags: [
-      { id: 1, name: "Node.js", path: "/assets/logos/nodejs.svg" },
-      { id: 2, name: "Express", path: "/assets/logos/express.svg" },
-      { id: 3, name: "MongoDB", path: "/assets/logos/mongodb.svg" },
-      { id: 4, name: "JWT", path: "/assets/logos/jwt.svg" },
-    ],
-  },
-  {
-    id: 3,
+    id: 5,
     title: "Speakbot Command Following Bot",
     description:
       "A Python-based assistant bot that handles commands like weather, movies, Wikipedia, and location using various APIs.",
@@ -67,8 +101,9 @@ export const myProjects = [
       { id: 2, name: "APIs", path: "/assets/logos/api.svg" },
     ],
   },
+
   {
-    id: 4,
+    id: 6,
     title: "Banjara Tour & Travel",
     description:
       "A complete core PHP-based travel agency website with packages, contact forms, and booking features.",
@@ -81,8 +116,9 @@ export const myProjects = [
       { id: 4, name: "JavaScript", path: "/assets/logos/javascript.svg" },
     ],
   },
+
   {
-    id: 5,
+    id: 7,
     title: "Netflix Clone",
     description:
       "A full-stack Netflix clone using React for the frontend and Firebase for authentication and database.",
@@ -161,6 +197,20 @@ export const reviews = [
 
 export const experiences = [
   {
+    title: "Full Stack Developer",
+    job: "Prem Packaging (Prem Industries India Ltd.)",
+    date: "Dec 2025 - Present",
+    contents: [
+      "Developed and maintained production-grade web applications handling product catalogs, order management, and admin dashboards.",
+      "Built scalable REST APIs using Node.js, Express, and MongoDB to support search, filtering, and role-based access control.",
+      "Integrated AWS services including EC2, S3, CloudFront, and IAM for secure deployment and optimized content delivery.",
+      "Implemented caching strategies using Redis to reduce API latency and improve application performance.",
+      "Worked on frontend deployment via AWS Amplify and ensured smooth communication with backend services.",
+      "Diagnosed and resolved production issues related to environment variables, IAM permissions, and database connectivity.",
+    ],
+  },
+
+  {
     title: "Software Engineering Virtual Experience",
     job: "J.P. Morgan (via Forage)",
     date: "Jun 2025",
@@ -171,6 +221,7 @@ export const experiences = [
       "Gained exposure to large-scale investment banking technology environments.",
     ],
   },
+
   {
     title: "Full Stack Developer",
     job: "Freelance & Personal Projects",

@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import React, { useEffect } from "react";
 import Navbar from "./sections/Navbar";
 import Hero from "./sections/Hero";
@@ -22,7 +23,7 @@ const App = () => {
           // Ignore errors
           console.error(`Heartbeat error: ${e.message}`);
         });
-    }, 1000 * 60 * 14); // Every 14 minutes
+    }, 1000 * 30); // Every 14 minutes
 
     return () => clearInterval(interval);
   }, []);

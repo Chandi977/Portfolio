@@ -1,3 +1,6 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable react/prop-types */
+/* eslint-disable react/jsx-key */
 import { motion } from "motion/react";
 const ProjectDetails = ({
   title,
