@@ -20,9 +20,10 @@ const About = () => {
           <div className="z-10">
             <p className="headtext">Hi, I'm Chandi Charan Mahato</p>
             <p className="subtext">
-              I'm a passionate Full-Stack Developer with a focus on MERN Stack.
-              I love solving real-world problems, working with APIs, and
-              building scalable web applications.
+              I'm a Full-Stack & Backend-focused Developer specializing in MERN
+              Stack, scalable backend systems, and cloud-native applications. I
+              enjoy building production-grade platforms, optimizing performance,
+              and solving system-design problems using real-world architectures.
             </p>
           </div>
           <div className="absolute inset-x-0 pointer-events-none -bottom-4 h-1/2 sm:h-1/3 bg-gradient-to-t from-indigo" />
@@ -39,17 +40,17 @@ const About = () => {
             </p>
             <Card
               style={{ rotate: "75deg", top: "30%", left: "20%" }}
-              text="MERN"
+              text="MERN Stack"
               containerRef={grid2Container}
             />
             <Card
               style={{ rotate: "-30deg", top: "60%", left: "45%" }}
-              text="DSA"
+              text="DSA & Algorithms"
               containerRef={grid2Container}
             />
             <Card
               style={{ rotate: "90deg", bottom: "30%", left: "70%" }}
-              text="API Integration"
+              text="System Design"
               containerRef={grid2Container}
             />
             <Card
@@ -64,17 +65,17 @@ const About = () => {
             />
             <Card
               style={{ rotate: "30deg", top: "70%", left: "70%" }}
-              image="assets/logos/javascript.svg"
+              text="AWS Cloud"
               containerRef={grid2Container}
             />
             <Card
               style={{ rotate: "-45deg", top: "70%", left: "25%" }}
-              image="assets/logos/nodejs.svg"
+              text="Redis / Caching"
               containerRef={grid2Container}
             />
             <Card
               style={{ rotate: "-45deg", top: "5%", left: "10%" }}
-              image="assets/logos/MongoDb.svg"
+              text="WebSockets"
               containerRef={grid2Container}
             />
           </div>
@@ -106,11 +107,14 @@ const About = () => {
         {/* Grid 5 */}
         <div className="grid-default-color grid-5">
           <div className="z-10 w-[50%]">
-            <p className="headText">Tech Stack</p>
             <p className="subtext">
-              I specialize in building full-stack web apps using MongoDB,
-              Express.js, React.js, and Node.js. I also integrate external APIs
-              and real-time features like WebSockets.
+              I work across the full development lifecycle using MongoDB,
+              Express.js, React.js, and Node.js. My backend experience includes
+              REST API design, authentication with JWT, caching with Redis
+              (FlashKV), real-time systems using WebSockets, and cloud
+              deployment on AWS (EC2, S3, CloudFront, IAM, Amplify). I also
+              actively practice Data Structures, Algorithms, and System Design
+              to build scalable and reliable systems.
             </p>
           </div>
           <div className="absolute inset-y-0 md:inset-y-9 w-full h-full start-[50%] md:scale-125">

@@ -1,72 +1,93 @@
-import { useState } from "react";
-import { motion } from "motion/react";
-function Navigation() {
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+
+function Navigation({ onClick }) {
   return (
     <ul className="nav-ul">
-      <li className="nav-li">
-        <a className="nav-link" href="#home">
-          Home
-        </a>
-      </li>
-      <li className="nav-li">
-        <a className="nav-link" href="#about">
-          About
-        </a>
-      </li>
-      <li className="nav-li">
-        <a className="nav-link" href="#work">
-          Work
-        </a>
-      </li>
-      <li className="nav-li">
-        <a className="nav-link" href="#contact">
-          Contact
-        </a>
-      </li>
+      {["home", "about", "work", "contact"].map((item) => (
+        <li key={item} className="nav-li">
+          <a href={`#${item}`} onClick={onClick} className="nav-link">
+            {item.charAt(0).toUpperCase() + item.slice(1)}
+          </a>
+        </li>
+      ))}
     </ul>
   );
 }
+
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 40);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <div className="fixed inset-x-0 z-20 w-full backdrop-blur-lg bg-primary/40">
+    <motion.header
+      initial={{ y: -60, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className={`fixed inset-x-0 top-0 z-30 transition-all duration-300
+        ${
+          scrolled
+            ? "bg-primary/70 backdrop-blur-xl shadow-lg"
+            : "bg-transparent"
+        }
+      `}
+    >
       <div className="mx-auto c-space max-w-7xl">
-        <div className="flex items-center justify-between py-2 sm:py-0">
+        <div className="flex items-center justify-between py-3">
+          {/* Logo */}
           <a
-            href="/"
-            className="text-xl font-bold transition-colors text-neutral-400 hover:text-white"
+            href="#home"
+            className="text-xl font-bold tracking-wide text-neutral-300 hover:text-white transition-colors"
           >
             Charan
           </a>
+
+          {/* Desktop Nav */}
+          <nav className="hidden sm:flex">
+            <Navigation />
+          </nav>
+
+          {/* Mobile Toggle */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="flex cursor-pointer text-neutral-400 hover:text-white focus:outline-none sm:hidden"
+            className="sm:hidden text-neutral-400 hover:text-white transition"
+            aria-label="Toggle Menu"
           >
             <img
               src={isOpen ? "assets/close.svg" : "assets/menu.svg"}
               className="w-6 h-6"
-              alt="toggle"
+              alt="menu"
             />
           </button>
-          <nav className="hidden sm:flex">
-            <Navigation />
-          </nav>
         </div>
       </div>
-      {isOpen && (
-        <motion.div
-          className="block overflow-hidden text-center sm:hidden"
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          style={{ maxHeight: "100vh" }}
-          transition={{ duration: 1 }}
-        >
-          <nav className="pb-5">
-            <Navigation />
-          </nav>
-        </motion.div>
-      )}
-    </div>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.nav
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: "easeInOut" }}
+            className="overflow-hidden sm:hidden bg-primary/80 backdrop-blur-xl"
+          >
+            <div className="pb-6 pt-2">
+              <Navigation onClick={() => setIsOpen(false)} />
+            </div>
+          </motion.nav>
+        )}
+      </AnimatePresence>
+    </motion.header>
   );
 };
 
