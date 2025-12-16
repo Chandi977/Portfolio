@@ -12,21 +12,7 @@ import Footer from "./sections/Footer";
 const HEARTBEAT_URL = "https://charan-portfolio-htvx.onrender.com"; // Replace with your backend/server URL
 
 const App = () => {
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetch(HEARTBEAT_URL)
-        .then(() => {
-          // Heartbeat sent
-          console.log(`Heartbeat sent: ${res.statusCode}`);
-        })
-        .catch(() => {
-          // Ignore errors
-          console.error(`Heartbeat error: ${e.message}`);
-        });
-    }, 1000 * 30); // Every 14 minutes
-
-    return () => clearInterval(interval);
-  }, []);
+  
 
   return (
     <div className="container mx-auto max-w-7xl">

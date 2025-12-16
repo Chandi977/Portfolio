@@ -176,7 +176,7 @@ export const myProjects = [
       "Git & GitHub",
     ],
     image: "/assets/projects/youtube.png",
-    href: "https://github.com/Chandi977/Youtube-frontend",
+    href: "https://client-nine-green-46.vercel.app/",
     github: "https://github.com/Chandi977/Youtube-frontend",
     stats: {
       year: "2024",
@@ -415,7 +415,7 @@ export const experiences = [
     date: "Dec 2025 - Present",
     title: "Full Stack Developer",
     job: "Prem Packaging (Prem Industries India Ltd.)",
-    location: "India",
+    location: "Ghaziabad, Uttar Pradesh, India",
     type: "Full-time",
     description:
       "Full Stack Developer working on production-grade backend services and cloud-hosted business systems.",
