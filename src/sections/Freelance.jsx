@@ -12,7 +12,7 @@ const Freelance = memo(function Freelance() {
               Freelance
             </p>
             <h2 className="text-heading text-4xl md:text-5xl">
-              Available for select freelance work
+              Available for selected freelance work
             </h2>
             <p className="subtext max-w-3xl">
               I help teams ship production-grade experiences - from zero-to-one
