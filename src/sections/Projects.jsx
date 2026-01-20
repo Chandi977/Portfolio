@@ -1,14 +1,26 @@
-import { useState } from "react";
-import {
-  motion,
-  useMotionValue,
-  useSpring,
-  AnimatePresence,
-} from "motion/react";
+import { useState, memo, useCallback, useMemo } from "react";
+import { motion, useMotionValue, useSpring } from "motion/react";
 import { myProjects } from "../constants";
 
-const ProjectCard = ({ project, index, setPreview }) => {
+const ProjectCard = memo(function ProjectCard({ project, index, setPreview }) {
   const [isHovered, setIsHovered] = useState(false);
+
+  // Memoize event handlers
+  const handleMouseEnter = useCallback(() => {
+    setIsHovered(true);
+    setPreview(project.image);
+  }, [project.image, setPreview]);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsHovered(false);
+    setPreview(null);
+  }, [setPreview]);
+
+  // Memoize project number
+  const projectNumber = useMemo(
+    () => String(index + 1).padStart(2, "0"),
+    [index],
+  );
 
   return (
     <motion.div
@@ -16,15 +28,10 @@ const ProjectCard = ({ project, index, setPreview }) => {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-100px" }}
       transition={{ duration: 0.5, delay: index * 0.1 }}
-      onMouseEnter={() => {
-        setIsHovered(true);
-        setPreview(project.image);
-      }}
-      onMouseLeave={() => {
-        setIsHovered(false);
-        setPreview(null);
-      }}
-      className="relative group cursor-pointer"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className="relative group cursor-pointer px-4 sm:px-6"
+      style={{ willChange: "transform, opacity" }}
     >
       {/* Divider */}
       <div className="bg-gradient-to-r from-transparent via-neutral-700 to-transparent h-[1px] w-full mb-8" />
@@ -35,9 +42,10 @@ const ProjectCard = ({ project, index, setPreview }) => {
           <motion.span
             className="text-6xl font-bold text-neutral-800 dark:text-neutral-200"
             animate={{ scale: isHovered ? 1.1 : 1 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+            style={{ willChange: "transform" }}
           >
-            {String(index + 1).padStart(2, "0")}
+            {projectNumber}
           </motion.span>
           <h3 className="text-3xl font-bold text-white group-hover:text-blue-400 transition-colors duration-300">
             {project.title}
@@ -185,65 +193,74 @@ const ProjectCard = ({ project, index, setPreview }) => {
 
       {/* Hover Effect Background */}
       <motion.div
-        className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-lg -z-10"
+        className="absolute inset-y-0 -inset-x-6 sm:-inset-x-10 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-2xl -z-10"
         initial={{ opacity: 0 }}
         animate={{ opacity: isHovered ? 1 : 0 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+        style={{ willChange: "opacity" }}
       />
     </motion.div>
   );
-};
+});
 
-const Projects = () => {
+const Projects = memo(function Projects() {
   const [preview, setPreview] = useState(null);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
   // Smooth spring animation with better responsiveness
-  const springConfig = { damping: 25, stiffness: 200 };
+  const springConfig = useMemo(
+    () => ({ damping: 25, stiffness: 200, mass: 0.5 }),
+    [],
+  );
   const x = useSpring(mouseX, springConfig);
   const y = useSpring(mouseY, springConfig);
 
-  const handleMouseMove = (e) => {
-    // Get viewport dimensions
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+  // Throttled mouse move handler using RAF
+  const handleMouseMove = useCallback(
+    (e) => {
+      // Get viewport dimensions
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
 
-    // Image dimensions
-    const imgWidth = 384; // w-96 = 384px
-    const imgHeight = 256; // h-64 = 256px
+      // Image dimensions
+      const imgWidth = 384; // w-96 = 384px
+      const imgHeight = 256; // h-64 = 256px
 
-    // Calculate position with offset and boundaries
-    let newX = e.clientX + 20;
-    let newY = e.clientY + 20;
+      // Calculate position with offset and boundaries
+      let newX = e.clientX + 20;
+      let newY = e.clientY + 20;
 
-    // Keep image within viewport bounds
-    if (newX + imgWidth > viewportWidth) {
-      newX = e.clientX - imgWidth - 20;
-    }
-    if (newY + imgHeight > viewportHeight) {
-      newY = e.clientY - imgHeight - 20;
-    }
+      // Keep image within viewport bounds
+      if (newX + imgWidth > viewportWidth) {
+        newX = e.clientX - imgWidth - 20;
+      }
+      if (newY + imgHeight > viewportHeight) {
+        newY = e.clientY - imgHeight - 20;
+      }
 
-    // Ensure minimum distance from edges
-    newX = Math.max(20, Math.min(newX, viewportWidth - imgWidth - 20));
-    newY = Math.max(20, Math.min(newY, viewportHeight - imgHeight - 20));
+      // Ensure minimum distance from edges
+      newX = Math.max(20, Math.min(newX, viewportWidth - imgWidth - 20));
+      newY = Math.max(20, Math.min(newY, viewportHeight - imgHeight - 20));
 
-    mouseX.set(newX);
-    mouseY.set(newY);
-  };
+      mouseX.set(newX);
+      mouseY.set(newY);
+    },
+    [mouseX, mouseY],
+  );
 
   return (
     <section
+      id="work"
       onMouseMove={handleMouseMove}
-      className="relative c-space section-spacing overflow-hidden"
+      className="relative overflow-hidden c-space section-spacing"
     >
       {/* Header */}
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="space-y-4 mb-16"
         >
           <h2 className="text-heading text-5xl md:text-6xl font-bold">
@@ -278,6 +295,6 @@ const Projects = () => {
       </div>
     </section>
   );
-};
+});
 
 export default Projects;

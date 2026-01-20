@@ -23,7 +23,7 @@ export const Timeline = ({ data }) => {
   const opacityTransform = useTransform(scrollYProgress, [0, 0.1], [0, 1]);
 
   return (
-    <div className="c-space section-spacing" ref={containerRef}>
+    <div className="mt-20" ref={containerRef}>
       {/* Header Section */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -40,7 +40,7 @@ export const Timeline = ({ data }) => {
         </p>
       </motion.div>
 
-      <div ref={ref} className="relative pb-20">
+      <div ref={ref} className="relative pb-10">
         {data.map((item, index) => (
           <motion.div
             key={index}
@@ -48,7 +48,7 @@ export const Timeline = ({ data }) => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.5, delay: index * 0.1 }}
-            className="relative flex justify-start pt-10 md:pt-40 md:gap-10"
+            className="relative flex justify-start pt-40 md:pt-20 md:gap-10"
           >
             {/* Timeline Node */}
             <div className="sticky z-40 flex flex-col items-center self-start max-w-xs md:flex-row top-40 lg:max-w-sm md:w-full">

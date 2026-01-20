@@ -51,12 +51,42 @@
   }
 }
 
+/* Performance optimizations */
+* {
+  /* Reduce layout thrashing */
+  box-sizing: border-box;
+}
+
+/* Enable GPU acceleration for animated elements */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 body {
   background: #030412;
   font-family: "Funnel Display", sans-serif;
   color: white;
   scroll-behavior: smooth;
   overflow-x: hidden;
+  /* Improve text rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 
@@ -67,6 +97,7 @@ body {
 
 .hover-animation {
   @apply hover:-translate-y-1 duration-200;
+  will-change: transform;
 }
 
 .section-spacing {
@@ -213,8 +244,8 @@ html {
 
 /* Section spacing utility if not already defined */
 .section-spacing {
-  padding-top: 5rem;
-  padding-bottom: 5rem;
+  padding-top: 2rem;
+  padding-bottom: 2rem;
 }
 
 @media (min-width: 768px) {

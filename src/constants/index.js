@@ -21,6 +21,45 @@ export const mySocials = [
   },
 ];
 
+export const freelanceServices = [
+  {
+    title: "Build & Ship",
+    description:
+      "Full-cycle ownership for MVPs, dashboards, and B2B products - from architecture to launch.",
+    points: [
+      "MERN and cloud-native stacks",
+      "Secure auth, APIs, and integrations",
+      "Performance, observability, and scaling",
+    ],
+  },
+  {
+    title: "Improve & Optimize",
+    description:
+      "Drop in to stabilize existing products, tame tech debt, and accelerate delivery.",
+    points: [
+      "Audit and refactor critical paths",
+      "Caching, queues, and real-time systems",
+      "CI/CD, monitoring, and cost control",
+    ],
+  },
+  {
+    title: "Consult & Partner",
+    description:
+      "Bring me in for architecture reviews, roadmaps, and hands-on guidance for your team.",
+    points: [
+      "System design workshops",
+      "Technical spikes and proofs",
+      "Ongoing technical leadership",
+    ],
+  },
+];
+
+export const freelanceDetails = [
+  { label: "Availability", value: "Open for select remote projects" },
+  { label: "Engagements", value: "Project-based, retainers, or sprints" },
+  { label: "Response Time", value: "Replies within 1-2 business days" },
+];
+
 // constants.js
 
 export const myProjects = [

@@ -1,15 +1,15 @@
 import { twMerge } from "tailwind-merge";
 import Marquee from "../components/Marquee";
 import { reviews } from "../constants";
-const firstRow = reviews.slice(0, reviews.length / 2);
-const secondRow = reviews.slice(reviews.length / 2);
+import { memo, useMemo } from "react";
 
-const ReviewCard = ({ img, name, username, body }) => {
+const ReviewCard = memo(function ReviewCard({ img, name, username, body }) {
   return (
     <figure
       className={twMerge(
-        "relative h-full w-64 cursor-pointer overflow-hidden rounded-xl border p-4 border-gray-50/[.1] bg-gradient-to-r bg-indigo to-storm hover:bg-royal hover-animation"
+        "relative h-full w-64 cursor-pointer overflow-hidden rounded-xl border p-4 border-gray-50/[.1] bg-gradient-to-r bg-indigo to-storm hover:bg-royal hover-animation",
       )}
+      style={{ willChange: "transform" }}
     >
       <div className="flex flex-row items-center gap-2">
         <img
@@ -18,6 +18,8 @@ const ReviewCard = ({ img, name, username, body }) => {
           height="32"
           alt=""
           src={img}
+          loading="lazy"
+          decoding="async"
         />
         <div className="flex flex-col">
           <figcaption className="text-sm font-medium text-white">
@@ -29,9 +31,17 @@ const ReviewCard = ({ img, name, username, body }) => {
       <blockquote className="mt-2 text-sm">{body}</blockquote>
     </figure>
   );
-};
+});
 
-export default function Testimonial() {
+const Testimonial = memo(function Testimonial() {
+  // Memoize row splits to prevent recalculation
+  const { firstRow, secondRow } = useMemo(
+    () => ({
+      firstRow: reviews.slice(0, reviews.length / 2),
+      secondRow: reviews.slice(reviews.length / 2),
+    }),
+    [],
+  );
   return (
     <div className="items-start mt-25 md:mt-35 c-space">
       <h2 className="text-heading">Hear From My Clients</h2>
@@ -51,4 +61,6 @@ export default function Testimonial() {
       </div>
     </div>
   );
-}
+});
+
+export default Testimonial;

@@ -1,17 +1,39 @@
 import { motion, useScroll, useSpring, useTransform } from "motion/react";
+import { memo, useMemo } from "react";
 
-const ParallaxBackground = () => {
+const ParallaxBackground = memo(function ParallaxBackground() {
   const { scrollYProgress } = useScroll();
-  const x = useSpring(scrollYProgress, { damping: 50 });
+
+  // Optimized spring config for smoother parallax
+  const springConfig = useMemo(
+    () => ({
+      damping: 50,
+      stiffness: 100,
+      mass: 0.5,
+    }),
+    [],
+  );
+
+  const x = useSpring(scrollYProgress, springConfig);
   const mountain3Y = useTransform(x, [0, 0.5], ["0%", "70%"]);
   const planetsX = useTransform(x, [0, 0.5], ["0%", "-20%"]);
   const mountain2Y = useTransform(x, [0, 0.5], ["0%", "30%"]);
   const mountain1Y = useTransform(x, [0, 0.5], ["0%", "0%"]);
 
+  // Memoized styles for GPU-accelerated transforms
+  const baseStyle = useMemo(
+    () => ({
+      backgroundPosition: "bottom",
+      backgroundSize: "cover",
+      willChange: "transform",
+    }),
+    [],
+  );
+
   return (
     <section className="absolute inset-0 bg-black/40">
       <div className="relative h-screen overflow-y-hidden">
-        {/* Background Sky */}
+        {/* Background Sky - Static, no animation needed */}
         <div
           className="absolute inset-0 w-full h-screen -z-50"
           style={{
@@ -25,8 +47,7 @@ const ParallaxBackground = () => {
           className="absolute inset-0 -z-40"
           style={{
             backgroundImage: "url(/assets/mountain-3.png)",
-            backgroundPosition: "bottom",
-            backgroundSize: "cover",
+            ...baseStyle,
             y: mountain3Y,
           }}
         />
@@ -35,8 +56,7 @@ const ParallaxBackground = () => {
           className="absolute inset-0 -z-30"
           style={{
             backgroundImage: "url(/assets/planets.png)",
-            backgroundPosition: "bottom",
-            backgroundSize: "cover",
+            ...baseStyle,
             x: planetsX,
           }}
         />
@@ -45,24 +65,22 @@ const ParallaxBackground = () => {
           className="absolute inset-0 -z-20"
           style={{
             backgroundImage: "url(/assets/mountain-2.png)",
-            backgroundPosition: "bottom",
-            backgroundSize: "cover",
+            ...baseStyle,
             y: mountain2Y,
           }}
         />
-        {/* Mountaine Layer 1 */}
+        {/* Mountain Layer 1 */}
         <motion.div
           className="absolute inset-0 -z-10"
           style={{
             backgroundImage: "url(/assets/mountain-1.png)",
-            backgroundPosition: "bottom",
-            backgroundSize: "cover",
+            ...baseStyle,
             y: mountain1Y,
           }}
         />
       </div>
     </section>
   );
-};
+});
 
 export default ParallaxBackground;

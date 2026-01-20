@@ -1,11 +1,15 @@
 import { Timeline } from "../components/Timeline";
 import { experiences } from "../constants";
-const Experiences = () => {
+import { memo } from "react";
+
+const Experiences = memo(function Experiences() {
   return (
-    <div className="w-full">
-      <Timeline data={experiences} />
-    </div>
+    <section id="experience" className="w-full c-space section-spacing">
+      <div className="mx-auto max-w-7xl">
+        <Timeline data={experiences} />
+      </div>
+    </section>
   );
-};
+});
 
 export default Experiences;
