@@ -30,7 +30,7 @@ const CopyEmailButton = () => {
             transition={{ duration: 0.1, ease: "easeInOut" }}
           >
             <img src="assets/copy-done.svg" className="w-5" alt="copy Icon" />
-            Email has Copied
+            Email has Copied.
           </motion.p>
         ) : (
           <motion.p
