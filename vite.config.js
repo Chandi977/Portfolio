@@ -20,9 +20,15 @@ export default defineConfig({
         manualChunks: {
           // Split vendor chunks for better caching
           "react-vendor": ["react", "react-dom"],
-          "three-vendor": ["three", "@react-three/fiber", "@react-three/drei"],
+          // Keep Three.js ecosystem and maath together to avoid circular chunks
+          "three-vendor": [
+            "three",
+            "@react-three/fiber",
+            "@react-three/drei",
+            "maath",
+          ],
           "motion-vendor": ["motion"],
-          utils: ["tailwind-merge", "maath"],
+          utils: ["tailwind-merge"],
         },
       },
     },
