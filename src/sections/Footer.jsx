@@ -1,11 +1,15 @@
-import { memo, useEffect, useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "motion/react";
+import { memo, useEffect, useRef, useState, forwardRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { mySocials } from "../constants";
 import {
   Hairline,
   MonoLabel,
   StatusDot,
 } from "../components/starlog/ds";
+import { interpolate } from "../hooks/useGSAPBeat";
+
+gsap.registerPlugin(ScrollTrigger);
 
 /* ============================================================
    END · OF · FEED
@@ -18,21 +22,80 @@ const SUBLINE = "END · OF · FEED";
 
 const Footer = () => {
   const ref = useRef(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end end"],
-  });
+  const bgRef = useRef(null);
+  const railRef = useRef(null);
+  const hairRef = useRef(null);
+  const metaRef = useRef(null);
+  const socialsRef = useRef(null);
+  const creditRef = useRef(null);
+  const badgeRef = useRef(null);
+  const letterRefs = useRef([]);
 
-  // Atmospheric parallax
-  const bgY = useTransform(scrollYProgress, [0, 1], ["8%", "-8%"]);
-  const railWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
 
-  // Hairline draws across 0.55 → 0.85
-  const hairScale = useTransform(scrollYProgress, [0.55, 0.85], [0, 1], { clamp: true });
+    const chars = letterRefs.current;
+    const total = chars.filter(Boolean).length;
 
-  // Footer-meta fade-in 0.78 → 1.0
-  const metaOpacity = useTransform(scrollYProgress, [0.78, 1.0], [0, 1], { clamp: true });
-  const socialsY = useTransform(scrollYProgress, [0.78, 1.0], [20, 0], { clamp: true });
+    const st = ScrollTrigger.create({
+      trigger: el,
+      start: "top bottom",
+      end: "bottom bottom",
+      scrub: 0,
+      onUpdate: (self) => {
+        const p = self.progress;
+
+        // Atmosphere parallax
+        if (bgRef.current) {
+          bgRef.current.style.transform = `translateY(${interpolate(p, [0, 1], [8, -8])}%)`;
+        }
+
+        // Progress rail
+        if (railRef.current) railRef.current.style.width = `${p * 100}%`;
+
+        // Hairline 0.55→0.85
+        if (hairRef.current) {
+          hairRef.current.style.transform = `scaleX(${interpolate(p, [0.55, 0.85], [0, 1])})`;
+        }
+
+        // Meta/socials/credit 0.78→1.0
+        const metaOp = interpolate(p, [0.78, 1.0], [0, 1]);
+        const sY = interpolate(p, [0.78, 1.0], [20, 0]);
+        if (metaRef.current) {
+          metaRef.current.style.opacity = metaOp;
+          metaRef.current.style.transform = `translateY(${sY}px)`;
+        }
+        if (socialsRef.current) {
+          socialsRef.current.style.opacity = metaOp;
+          socialsRef.current.style.transform = `translateY(${sY}px)`;
+        }
+        if (creditRef.current) creditRef.current.style.opacity = metaOp;
+
+        // Badge 0.02→0.18
+        if (badgeRef.current) {
+          badgeRef.current.style.opacity = interpolate(p, [0.02, 0.18], [0, 1]);
+          badgeRef.current.style.transform = `translateY(${interpolate(p, [0.02, 0.18], [12, 0])}px)`;
+        }
+
+        // Letter assembly 0.10→0.55
+        const rangeSpan = 0.45;
+        for (let i = 0; i < chars.length; i++) {
+          const c = chars[i];
+          if (!c) continue;
+          const start = 0.10 + (i / total) * rangeSpan * 0.7;
+          const end = start + 0.04;
+          c.style.opacity = interpolate(p, [start, end], [0, 1]);
+          c.style.transform = `translateY(${interpolate(p, [start, end], [40, 0])}px) rotate(${interpolate(p, [start, end], [-8, 0])}deg)`;
+          c.style.filter = `blur(${interpolate(p, [start, end], [6, 0])}px)`;
+        }
+      },
+    });
+
+    return () => st.kill();
+  }, []);
+
+  const chars = Array.from(SIGNOFF);
 
   return (
     <footer
@@ -42,12 +105,13 @@ const Footer = () => {
     >
       <div className="sticky top-0 h-screen overflow-hidden bg-primary">
         {/* Atmosphere */}
-        <motion.div
+        <div
+          ref={bgRef}
           aria-hidden
           style={{
-            y: bgY,
             background:
               "radial-gradient(50% 50% at 50% 60%, rgba(122,87,219,0.12) 0%, rgba(3,4,18,0) 60%), radial-gradient(35% 35% at 10% 20%, rgba(51,194,204,0.08) 0%, rgba(3,4,18,0) 60%)",
+            willChange: "transform",
           }}
           className="absolute inset-0"
         />
@@ -74,38 +138,57 @@ const Footer = () => {
             <span>01</span>
           </div>
           <div className="h-px bg-white/10 relative overflow-hidden">
-            <motion.div
+            <div
+              ref={railRef}
               className="absolute inset-y-0 left-0 bg-gradient-to-r from-lavender via-aqua to-coral"
-              style={{ width: railWidth }}
+              style={{ width: "0%" }}
             />
           </div>
         </div>
 
         {/* Center stack */}
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12 text-center">
-          <CallsignBadge progress={scrollYProgress} />
+          <CallsignBadge ref={badgeRef} />
 
           <h2 className="font-display-tight italic text-[12vw] md:text-[10vw] lg:text-[9vw] leading-[0.95] tracking-[-0.05em] text-white mt-10 mb-6">
-            <LetterAssemble text={SIGNOFF} progress={scrollYProgress} range={[0.10, 0.55]} />
+            <span aria-label={SIGNOFF}>
+              {chars.map((c, i) =>
+                c === " " ? (
+                  <span key={i}>&nbsp;</span>
+                ) : (
+                  <span
+                    key={i}
+                    ref={(el) => (letterRefs.current[i] = el)}
+                    style={{ display: "inline-block", opacity: 0, willChange: "transform, opacity, filter" }}
+                    aria-hidden
+                  >
+                    {c}
+                  </span>
+                )
+              )}
+            </span>
           </h2>
 
-          <motion.div
-            style={{ scaleX: hairScale, transformOrigin: "center" }}
+          <div
+            ref={hairRef}
+            style={{ transformOrigin: "center", transform: "scaleX(0)" }}
             className="w-[min(560px,80vw)]"
           >
             <Hairline />
-          </motion.div>
+          </div>
 
-          <motion.p
-            style={{ opacity: metaOpacity, y: socialsY }}
+          <p
+            ref={metaRef}
+            style={{ opacity: 0 }}
             className="mt-7 font-mono-tight text-[11px] tracking-[0.4em] text-neutral-400 uppercase"
           >
             {SUBLINE}
-          </motion.p>
+          </p>
 
           {/* Socials grid */}
-          <motion.div
-            style={{ opacity: metaOpacity, y: socialsY }}
+          <div
+            ref={socialsRef}
+            style={{ opacity: 0 }}
             className="mt-10 flex flex-wrap gap-2 justify-center"
           >
             {mySocials.map((s) => (
@@ -129,98 +212,59 @@ const Footer = () => {
                 </span>
               </a>
             ))}
-          </motion.div>
+          </div>
         </div>
 
         {/* Bottom credit strip */}
-        <motion.div
-          style={{ opacity: metaOpacity }}
+        <div
+          ref={creditRef}
+          style={{ opacity: 0 }}
           className="absolute bottom-20 left-1/2 -translate-x-1/2 flex flex-col md:flex-row md:items-center gap-3 md:gap-6 font-mono-tight text-[9px] tracking-[0.3em] text-neutral-600 uppercase text-center"
         >
           <span>© {new Date().getFullYear()} · CHARAN · 977</span>
           <span className="hidden md:inline text-neutral-700">/</span>
-          <span>BUILT WITH REACT · MOTION · GSAP · LENIS · R3F</span>
-        </motion.div>
+          <span>BUILT WITH REACT · GSAP · R3F · LENIS</span>
+        </div>
       </div>
     </footer>
   );
 };
 
-/* ---------- LetterAssemble — each char fades + drops into place across a progress range ---------- */
-const LetterAssemble = memo(function LetterAssemble({ text, progress, range }) {
-  const chars = Array.from(text);
-  const [a, b] = range;
-  const total = chars.length;
-  return (
-    <span aria-label={text}>
-      {chars.map((c, i) => (
-        <LetterChar
-          key={i}
-          char={c}
-          index={i}
-          total={total}
-          progress={progress}
-          a={a}
-          b={b}
-        />
-      ))}
-    </span>
-  );
-});
+/* ---------- CallsignBadge ---------- */
+const CallsignBadge = memo(
+  forwardRef(function CallsignBadge(_props, ref) {
+    const [time, setTime] = useState("");
+    useEffect(() => {
+      const fmt = () => {
+        const d = new Date();
+        const hh = String(d.getUTCHours()).padStart(2, "0");
+        const mm = String(d.getUTCMinutes()).padStart(2, "0");
+        setTime(`${hh}:${mm} UTC`);
+      };
+      fmt();
+      const t = setInterval(fmt, 30000);
+      return () => clearInterval(t);
+    }, []);
 
-const LetterChar = memo(function LetterChar({ char, index, total, progress, a, b }) {
-  const span = b - a;
-  const start = a + (index / total) * span * 0.7;
-  const end = start + 0.04;
-  const opacity = useTransform(progress, [start, end], [0, 1], { clamp: true });
-  const y = useTransform(progress, [start, end], [40, 0], { clamp: true });
-  const rotate = useTransform(progress, [start, end], [-8, 0], { clamp: true });
-  const blur = useTransform(progress, [start, end], [6, 0], { clamp: true });
-  const filter = useTransform(blur, (v) => `blur(${v}px)`);
-  if (char === " ") return <span>&nbsp;</span>;
-  return (
-    <motion.span
-      style={{ opacity, y, rotate, filter, display: "inline-block" }}
-      aria-hidden
-    >
-      {char}
-    </motion.span>
-  );
-});
-
-const CallsignBadge = memo(function CallsignBadge({ progress }) {
-  const [time, setTime] = useState("");
-  useEffect(() => {
-    const fmt = () => {
-      const d = new Date();
-      const hh = String(d.getUTCHours()).padStart(2, "0");
-      const mm = String(d.getUTCMinutes()).padStart(2, "0");
-      setTime(`${hh}:${mm} UTC`);
-    };
-    fmt();
-    const t = setInterval(fmt, 30000);
-    return () => clearInterval(t);
-  }, []);
-  const opacity = useTransform(progress, [0.02, 0.18], [0, 1], { clamp: true });
-  const y = useTransform(progress, [0.02, 0.18], [12, 0], { clamp: true });
-  return (
-    <motion.div style={{ opacity, y }} className="flex items-center gap-4">
-      <span className="relative flex items-center justify-center w-7 h-7 border border-lavender/60 rotate-45">
-        <span className="absolute inset-1.5 bg-lavender/80" />
-      </span>
-      <div className="flex flex-col items-start leading-none">
-        <MonoLabel tone="lavender">CALLSIGN</MonoLabel>
-        <span className="font-display-tight italic text-2xl text-white tracking-[-0.02em] mt-1">
-          CHARAN · 977
+    return (
+      <div ref={ref} style={{ opacity: 0, willChange: "transform, opacity" }} className="flex items-center gap-4">
+        <span className="relative flex items-center justify-center w-7 h-7 border border-lavender/60 rotate-45">
+          <span className="absolute inset-1.5 bg-lavender/80" />
         </span>
+        <div className="flex flex-col items-start leading-none">
+          <MonoLabel tone="lavender">CALLSIGN</MonoLabel>
+          <span className="font-display-tight italic text-2xl text-white tracking-[-0.02em] mt-1">
+            CHARAN · 977
+          </span>
+        </div>
+        <span className="block w-px h-8 bg-white/15" />
+        <div className="flex items-center gap-2">
+          <StatusDot tone="mint" />
+          <MonoLabel>SIGNED · OFF · {time}</MonoLabel>
+        </div>
       </div>
-      <span className="block w-px h-8 bg-white/15" />
-      <div className="flex items-center gap-2">
-        <StatusDot tone="mint" />
-        <MonoLabel>SIGNED · OFF · {time}</MonoLabel>
-      </div>
-    </motion.div>
-  );
-});
+    );
+  })
+);
 
 export default memo(Footer);

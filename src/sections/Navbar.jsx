@@ -1,5 +1,10 @@
-import { useState, useEffect, memo, useCallback, useMemo } from "react";
-import { motion, AnimatePresence, useScroll, useSpring } from "motion/react";
+
+import { useState, useEffect, memo, useCallback, useMemo, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const NAV_ITEMS = [
   { id: "home", label: "HOME", code: "01" },
@@ -46,12 +51,24 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState("home");
   const [time, setTime] = useState("");
+  const progressRef = useRef(null);
 
-  // Scroll telemetry
-  const { scrollYProgress } = useScroll();
-  const smoothProg = useSpring(scrollYProgress, { damping: 30, stiffness: 200 });
+  // GSAP-driven scroll progress bar (replaces useScroll().scrollYProgress)
+  useEffect(() => {
+    const st = ScrollTrigger.create({
+      start: 0,
+      end: "max",
+      scrub: 0,
+      onUpdate: (self) => {
+        if (progressRef.current) {
+          progressRef.current.style.transform = `scaleX(${self.progress})`;
+        }
+      },
+    });
+    return () => st.kill();
+  }, []);
 
-  // UTC clock for the navbar header
+  // UTC clock
   useEffect(() => {
     const fmt = () => {
       const d = new Date();
@@ -72,7 +89,6 @@ const Navbar = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           setScrolled(window.scrollY > 40);
-          // Cheap active-section detection
           const sections = NAV_ITEMS.map((i) => document.getElementById(i.id)).filter(Boolean);
           const mid = window.innerHeight * 0.35;
           for (const s of sections) {
@@ -112,7 +128,7 @@ const Navbar = () => {
       transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
       className={headerClass}
     >
-      {/* Top meta strip — frequency / clock / scroll telemetry */}
+      {/* Top meta strip */}
       <div className="hidden md:flex items-center justify-between gap-4 px-6 lg:px-12 py-1.5 border-b border-white/5">
         <div className="flex items-center gap-3 font-mono-tight text-[10px] tracking-[0.3em] text-neutral-500">
           <span className="block w-2 h-2 rounded-full bg-mint shadow-[0_0_8px_#57db96]" />
@@ -170,14 +186,15 @@ const Navbar = () => {
           </button>
         </div>
 
-        {/* Scroll progress bar */}
-        <motion.div
+        {/* Scroll progress bar — GSAP driven */}
+        <div
+          ref={progressRef}
           className="h-px bg-gradient-to-r from-lavender via-aqua to-coral origin-left"
-          style={{ scaleX: smoothProg }}
+          style={{ transform: "scaleX(0)" }}
         />
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu (stays motion/react for AnimatePresence) */}
       <AnimatePresence>
         {isOpen && (
           <motion.nav

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, memo } from "react";
-import { motion, useTransform } from "motion/react";
+import { useState, useEffect, useCallback, memo, useRef } from "react";
+import { motion } from "motion/react";
 import emailjs from "@emailjs/browser";
 import Alert from "../components/Alert";
 import {
@@ -8,7 +8,9 @@ import {
   MonoLabel,
   StatusDot,
   Hairline,
+  useSubProgress,
 } from "../components/starlog/ds";
+import { interpolate } from "../hooks/useGSAPBeat";
 
 /* ============================================================
    TRANSMISSION 08 // UPLINK
@@ -47,27 +49,18 @@ const Contact = () => (
   </PinnedStage>
 );
 
-/** Subscribe to a MotionValue and call cb whenever it changes */
-function useReadMV(mv, cb) {
-  useEffect(() => {
-    cb(mv.get());
-    return mv.on("change", cb);
-  }, [mv, cb]);
-}
-
 const ContactBeats = ({ p }) => {
-  const bootP = useTransform(p, [0, 0.20], [0, 1], { clamp: true });
-  const shakeP = useTransform(p, [0.20, 0.40], [0, 1], { clamp: true });
-  const fieldsP = useTransform(p, [0.40, 0.80], [0, 1], { clamp: true });
-  const activeP = useTransform(p, [0.78, 0.86], [0, 1], { clamp: true });
+  const bootP = useSubProgress(p, 0, 0.20);
+  const shakeP = useSubProgress(p, 0.20, 0.40);
+  const fieldsP = useSubProgress(p, 0.40, 0.80);
+  const activeP = useSubProgress(p, 0.78, 0.86);
 
-  const bootBarW = useTransform(bootP, [0, 0.9], ["0%", "100%"]);
-  const btnOpacity = useTransform(activeP, [0, 1], [0.35, 1]);
-
-  // The form panel stays mounted from beat 3 onwards.
-  // Track whether it should be interactive (after beat 4 starts).
+  // Track whether form should be interactive (after beat 4 starts)
   const [interactive, setInteractive] = useState(false);
-  useReadMV(activeP, (v) => setInteractive(v > 0.05));
+  useEffect(() => {
+    if (!activeP) return;
+    return activeP.onChange((v) => setInteractive(v > 0.05));
+  }, [activeP]);
 
   return (
     <>
@@ -98,12 +91,7 @@ const ContactBeats = ({ p }) => {
                   <BootPercent bootP={bootP} />
                 </MonoLabel>
               </div>
-              <div className="h-1 bg-white/10 relative overflow-hidden">
-                <motion.div
-                  style={{ width: bootBarW }}
-                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-lavender via-aqua to-mint"
-                />
-              </div>
+              <BootBar bootP={bootP} />
             </div>
           </div>
         </div>
@@ -123,25 +111,24 @@ const ContactBeats = ({ p }) => {
             ))}
           </div>
 
-          <motion.p
-            style={{ opacity: useTransform(shakeP, [0.75, 1], [0, 1]) }}
-            className="mt-12 font-mono-tight text-xs tracking-[0.35em] text-mint uppercase"
-          >
-            ✓ ALL SYSTEMS NOMINAL
-          </motion.p>
+          <FadeIn progress={shakeP} start={0.75} end={1}>
+            <p className="mt-12 font-mono-tight text-xs tracking-[0.35em] text-mint uppercase">
+              ✓ ALL SYSTEMS NOMINAL
+            </p>
+          </FadeIn>
         </div>
       </Beat>
 
-      {/* ════ BEAT 3+4 — FORM (single mount, fades in once) ════ */}
+      {/* ════ BEAT 3+4 — FORM ════ */}
       <Beat progress={p} range={[0.38, 0.44, 1.0, 1.0]}>
         <ContactForm
           fieldsP={fieldsP}
-          btnOpacity={btnOpacity}
+          activeP={activeP}
           interactive={interactive}
         />
       </Beat>
 
-      {/* Signoff hairline (during last 10%) */}
+      {/* Signoff hairline */}
       <Beat progress={p} range={[0.92, 0.95, 1.0, 1.0]}>
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[min(640px,80vw)] z-30">
           <Hairline />
@@ -155,36 +142,105 @@ const ContactBeats = ({ p }) => {
   );
 };
 
+/* ---------- FadeIn ---------- */
+const FadeIn = memo(function FadeIn({ progress, start, end, children }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!progress) return;
+    return progress.onChange((p) => {
+      if (ref.current) ref.current.style.opacity = interpolate(p, [start, end], [0, 1]);
+    });
+  }, [progress, start, end]);
+  return <div ref={ref} style={{ opacity: 0 }}>{children}</div>;
+});
+
 /* ---------- BootLine ---------- */
 const BootLine = memo(function BootLine({ line, index, total, bootP }) {
+  const ref = useRef(null);
   const start = (index / total) * 0.85;
   const end = start + 0.05;
-  const opacity = useTransform(bootP, [start, end], [0, 1], { clamp: true });
-  const x = useTransform(bootP, [start, end], [-10, 0], { clamp: true });
+
+  useEffect(() => {
+    if (!bootP) return;
+    return bootP.onChange((p) => {
+      const el = ref.current;
+      if (!el) return;
+      el.style.opacity = interpolate(p, [start, end], [0, 1]);
+      el.style.transform = `translateX(${interpolate(p, [start, end], [-10, 0])}px)`;
+    });
+  }, [bootP, start, end]);
+
   return (
-    <motion.li
-      style={{ opacity, x }}
+    <li
+      ref={ref}
+      style={{ opacity: 0, willChange: "transform, opacity" }}
       className="font-mono-tight text-xs md:text-sm text-neutral-300 flex items-center gap-2"
     >
       <span className="text-mint">{line.slice(0, 1)}</span>
       <span className="text-neutral-300">{line.slice(2)}</span>
-    </motion.li>
+    </li>
   );
 });
 
+/* ---------- BootPercent ---------- */
 const BootPercent = memo(function BootPercent({ bootP }) {
   const [pct, setPct] = useState(0);
-  useReadMV(bootP, (v) => setPct(Math.round(v * 100)));
+  useEffect(() => {
+    if (!bootP) return;
+    return bootP.onChange((v) => setPct(Math.round(v * 100)));
+  }, [bootP]);
   return <>{String(pct).padStart(3, "0")}%</>;
+});
+
+/* ---------- BootBar ---------- */
+const BootBar = memo(function BootBar({ bootP }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!bootP) return;
+    return bootP.onChange((p) => {
+      if (ref.current) ref.current.style.width = `${interpolate(p, [0, 0.9], [0, 100])}%`;
+    });
+  }, [bootP]);
+  return (
+    <div className="h-1 bg-white/10 relative overflow-hidden">
+      <div
+        ref={ref}
+        style={{ width: "0%" }}
+        className="absolute inset-y-0 left-0 bg-gradient-to-r from-lavender via-aqua to-mint"
+      />
+    </div>
+  );
 });
 
 /* ---------- SystemLight ---------- */
 const SystemLight = memo(function SystemLight({ system, index, shakeP }) {
+  const outerRef = useRef(null);
+  const ringRef = useRef(null);
+  const dotRef = useRef(null);
+  const okRef = useRef(null);
+
   const start = 0.1 + index * 0.2;
   const end = start + 0.12;
-  const lit = useTransform(shakeP, [start, end], [0, 1], { clamp: true });
-  const ringScale = useTransform(shakeP, [start, end], [0.6, 1], { clamp: true });
-  const opacity = useTransform(shakeP, [start - 0.05, start + 0.05], [0, 1], { clamp: true });
+
+  useEffect(() => {
+    if (!shakeP) return;
+    return shakeP.onChange((p) => {
+      const opacity = interpolate(p, [start - 0.05, start + 0.05], [0, 1]);
+      const lit = interpolate(p, [start, end], [0, 1]);
+      const ringScale = interpolate(p, [start, end], [0.6, 1]);
+
+      if (outerRef.current) outerRef.current.style.opacity = opacity;
+      if (ringRef.current) {
+        ringRef.current.style.opacity = lit;
+        ringRef.current.style.transform = `scale(${ringScale})`;
+      }
+      if (dotRef.current) {
+        dotRef.current.style.opacity = lit;
+        dotRef.current.style.transform = `scale(${lit})`;
+      }
+      if (okRef.current) okRef.current.style.opacity = lit;
+    });
+  }, [shakeP, start, end]);
 
   const toneMap = {
     lavender: { dot: "bg-lavender", text: "text-lavender", ring: "border-lavender", shadow: "shadow-[0_0_24px_rgba(122,87,219,0.7)]" },
@@ -193,38 +249,38 @@ const SystemLight = memo(function SystemLight({ system, index, shakeP }) {
   }[system.tone];
 
   return (
-    <motion.div style={{ opacity }} className="flex flex-col items-center text-center">
-      <motion.div
-        style={{ scale: ringScale }}
-        className="relative w-20 h-20 md:w-24 md:h-24 rounded-full border-2 border-white/10 flex items-center justify-center"
-      >
-        <motion.span
-          style={{ opacity: lit }}
+    <div ref={outerRef} style={{ opacity: 0 }} className="flex flex-col items-center text-center">
+      <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full border-2 border-white/10 flex items-center justify-center">
+        <span
+          ref={ringRef}
+          style={{ opacity: 0 }}
           className={`absolute inset-0 rounded-full border-2 ${toneMap.ring} ${toneMap.shadow}`}
         />
-        <motion.span
-          style={{ opacity: lit, scale: lit }}
+        <span
+          ref={dotRef}
+          style={{ opacity: 0, transform: "scale(0)" }}
           className={`block w-3 h-3 rounded-full ${toneMap.dot}`}
         />
-      </motion.div>
+      </div>
       <span className={`mt-4 font-mono-tight text-[10px] tracking-[0.3em] ${toneMap.text}`}>
         {system.code}
       </span>
       <span className="mt-1 font-mono-tight text-[11px] tracking-[0.22em] text-neutral-400 uppercase">
         {system.label}
       </span>
-      <motion.span
-        style={{ opacity: lit }}
+      <span
+        ref={okRef}
+        style={{ opacity: 0 }}
         className="mt-2 font-mono-tight text-[9px] tracking-[0.25em] text-mint"
       >
         ✓ OK
-      </motion.span>
-    </motion.div>
+      </span>
+    </div>
   );
 });
 
-/* ---------- ContactForm — single mount, fades in once ---------- */
-const ContactForm = memo(function ContactForm({ fieldsP, btnOpacity, interactive }) {
+/* ---------- ContactForm ---------- */
+const ContactForm = memo(function ContactForm({ fieldsP, activeP, interactive }) {
   const [formData, setFormData] = useState({ name: "", email: "", message: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
@@ -272,6 +328,14 @@ const ContactForm = memo(function ContactForm({ fieldsP, btnOpacity, interactive
     [formData, showMsg],
   );
 
+  const btnRef = useRef(null);
+  useEffect(() => {
+    if (!activeP) return;
+    return activeP.onChange((p) => {
+      if (btnRef.current) btnRef.current.style.opacity = interpolate(p, [0, 1], [0.35, 1]);
+    });
+  }, [activeP]);
+
   return (
     <div className="absolute inset-0 flex items-center justify-center px-6 md:px-12 z-20">
       {showAlert && <Alert type={alertType} text={alertMessage} />}
@@ -294,43 +358,20 @@ const ContactForm = memo(function ContactForm({ fieldsP, btnOpacity, interactive
 
         <form onSubmit={handleSubmit}>
           <ScrollField
-            label="CALLSIGN · NAME"
-            code="08.01"
-            id="name"
-            name="name"
-            type="text"
-            placeholder="enter your name…"
-            value={formData.name}
-            onChange={handleChange}
-            range={[0.00, 0.25]}
-            fieldsP={fieldsP}
-            interactive={interactive}
+            label="CALLSIGN · NAME" code="08.01" id="name" name="name" type="text"
+            placeholder="enter your name…" value={formData.name} onChange={handleChange}
+            range={[0.00, 0.25]} fieldsP={fieldsP} interactive={interactive}
           />
           <ScrollField
-            label="RETURN · ADDRESS"
-            code="08.02"
-            id="email"
-            name="email"
-            type="email"
-            placeholder="you@example.com"
-            value={formData.email}
-            onChange={handleChange}
-            range={[0.25, 0.55]}
-            fieldsP={fieldsP}
-            interactive={interactive}
+            label="RETURN · ADDRESS" code="08.02" id="email" name="email" type="email"
+            placeholder="you@example.com" value={formData.email} onChange={handleChange}
+            range={[0.25, 0.55]} fieldsP={fieldsP} interactive={interactive}
           />
           <ScrollField
-            label="PAYLOAD · MESSAGE"
-            code="08.03"
-            id="message"
-            name="message"
+            label="PAYLOAD · MESSAGE" code="08.03" id="message" name="message"
             placeholder="what are you building? what do you need? when?"
-            value={formData.message}
-            onChange={handleChange}
-            range={[0.55, 0.95]}
-            fieldsP={fieldsP}
-            interactive={interactive}
-            textarea
+            value={formData.message} onChange={handleChange}
+            range={[0.55, 0.95]} fieldsP={fieldsP} interactive={interactive} textarea
           />
 
           <Hairline className="my-7" />
@@ -343,11 +384,12 @@ const ContactForm = memo(function ContactForm({ fieldsP, btnOpacity, interactive
               </MonoLabel>
             </div>
             <motion.button
+              ref={btnRef}
               type="submit"
               disabled={!interactive || isLoading}
               whileHover={interactive ? { scale: 1.02 } : undefined}
               whileTap={interactive ? { scale: 0.98 } : undefined}
-              style={{ opacity: btnOpacity }}
+              style={{ opacity: 0.35 }}
               className="group relative inline-flex items-center justify-between gap-4 border border-mint/50 hover:border-mint hover:bg-mint/5 px-6 py-3 transition-all disabled:cursor-not-allowed min-w-[240px] shadow-[0_0_24px_-12px_rgba(87,219,150,0.6)]"
             >
               <span className="font-mono-tight text-xs tracking-[0.32em] text-white uppercase">
@@ -368,28 +410,31 @@ const ContactForm = memo(function ContactForm({ fieldsP, btnOpacity, interactive
   );
 });
 
-/* ---------- ScrollField — appears typed in based on fieldsP ---------- */
+/* ---------- ScrollField ---------- */
 const ScrollField = memo(function ScrollField({
-  label,
-  code,
-  id,
-  name,
-  type = "text",
-  placeholder,
-  value,
-  onChange,
-  range,
-  fieldsP,
-  interactive,
-  textarea = false,
+  label, code, id, name, type = "text", placeholder, value, onChange,
+  range, fieldsP, interactive, textarea = false,
 }) {
+  const wrapRef = useRef(null);
+  const cursorRef = useRef(null);
   const [a, b] = range;
-  const opacity = useTransform(fieldsP, [a, a + 0.05], [0, 1], { clamp: true });
-  const y = useTransform(fieldsP, [a, a + 0.05], [16, 0], { clamp: true });
-  const typeW = useTransform(fieldsP, [a, b], ["0%", "100%"], { clamp: true });
+
+  useEffect(() => {
+    if (!fieldsP) return;
+    return fieldsP.onChange((p) => {
+      const wrap = wrapRef.current;
+      if (!wrap) return;
+      wrap.style.opacity = interpolate(p, [a, a + 0.05], [0, 1]);
+      wrap.style.transform = `translateY(${interpolate(p, [a, a + 0.05], [16, 0])}px)`;
+
+      if (cursorRef.current) {
+        cursorRef.current.style.width = `${interpolate(p, [a, b], [0, 100])}%`;
+      }
+    });
+  }, [fieldsP, a, b]);
 
   return (
-    <motion.div style={{ opacity, y }} className="mb-6">
+    <div ref={wrapRef} style={{ opacity: 0, willChange: "transform, opacity" }} className="mb-6">
       <div className="flex items-center justify-between mb-2">
         <MonoLabel tone="lavender">{code} · {label}</MonoLabel>
         <span className="font-mono-tight text-[9px] tracking-[0.25em] text-neutral-600">REQUIRED</span>
@@ -397,42 +442,30 @@ const ScrollField = memo(function ScrollField({
       <div className="starlog-input-wrap relative">
         {textarea ? (
           <textarea
-            id={id}
-            name={name}
-            rows="4"
-            className="starlog-input"
-            placeholder={placeholder}
-            value={value}
-            onChange={onChange}
-            required
-            disabled={!interactive}
+            id={id} name={name} rows="4" className="starlog-input"
+            placeholder={placeholder} value={value} onChange={onChange}
+            required disabled={!interactive}
           />
         ) : (
           <input
-            id={id}
-            name={name}
-            type={type}
-            className="starlog-input"
-            placeholder={placeholder}
-            value={value}
-            onChange={onChange}
-            autoComplete={name}
-            required
-            disabled={!interactive}
+            id={id} name={name} type={type} className="starlog-input"
+            placeholder={placeholder} value={value} onChange={onChange}
+            autoComplete={name} required disabled={!interactive}
           />
         )}
 
         {!interactive && (
-          <motion.div
-            style={{ width: typeW }}
+          <div
+            ref={cursorRef}
             aria-hidden
+            style={{ width: "0%" }}
             className="absolute left-6 right-0 bottom-3 h-px bg-aqua/60 overflow-hidden pointer-events-none"
           >
             <span className="absolute right-0 top-[-12px] block w-[2px] h-3 bg-aqua animate-pulse" />
-          </motion.div>
+          </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 });
 

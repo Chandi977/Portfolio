@@ -118,7 +118,7 @@ export const myProjects = [
       "System Design",
       "Git & GitHub",
     ],
-    image: "/assets/projects/Url-shortner.png",
+    image: "/assets/projects/Url-shortner.webp",
     href: "https://github.com/Chandi977/MERN_URL_shortner",
     github: "https://github.com/Chandi977/MERN_URL_shortner",
     stats: {
@@ -156,7 +156,7 @@ export const myProjects = [
       "Low-Latency Systems",
       "System Design",
     ],
-    image: "/assets/projects/FlashKv.png",
+    image: "/assets/projects/FlashKv.webp",
     href: "https://github.com/Chandi977/FlashKv",
     github: "https://github.com/Chandi977/FlashKv",
     stats: {
@@ -214,7 +214,7 @@ export const myProjects = [
       "MVC Architecture",
       "Git & GitHub",
     ],
-    image: "/assets/projects/youtube.png",
+    image: "/assets/projects/youtube.webp",
     href: "https://client-nine-green-46.vercel.app/",
     github: "https://github.com/Chandi977/Youtube-frontend",
     stats: {
@@ -305,7 +305,7 @@ export const myProjects = [
       "Text-to-Speech",
       "Automation Scripts",
     ],
-    image: "/assets/projects/speakbot.png",
+    image: "/assets/projects/speakbot.webp",
     href: "https://github.com/Chandi977/Speakbot-Command-Following-Bot",
     github: "https://github.com/Chandi977/Speakbot-Command-Following-Bot",
     stats: {
@@ -340,7 +340,7 @@ export const myProjects = [
       "XAMPP",
       "Git",
     ],
-    image: "/assets/projects/banjara.png",
+    image: "/assets/projects/banjara.webp",
     href: "https://github.com/Chandi977/Banjara-Tour-and-Travel",
     github: "https://github.com/Chandi977/Banjara-Tour-and-Travel",
     stats: {
@@ -373,7 +373,7 @@ export const myProjects = [
       "REST APIs",
       "Git & GitHub",
     ],
-    image: "/assets/projects/netflix.png",
+    image: "/assets/projects/netflix.webp",
     href: "https://github.com/Chandi977/Netflixclone",
     github: "https://github.com/Chandi977/Netflixclone",
     stats: {

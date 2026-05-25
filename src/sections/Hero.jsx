@@ -5,8 +5,9 @@ import { Astronaut } from "../components/Astronaut";
 import { Float } from "@react-three/drei";
 import { useMediaQuery } from "react-responsive";
 import { easing } from "maath";
-import { Suspense, memo, useMemo } from "react";
+import { Suspense, memo, useMemo, useRef } from "react";
 import Loader from "../components/Loader";
+import { useInView } from "motion/react";
 
 // Memoized Rig component to prevent unnecessary re-renders
 const Rig = memo(function Rig() {
@@ -25,6 +26,8 @@ const MemoizedAstronaut = memo(Astronaut);
 
 const Hero = () => {
   const isMobile = useMediaQuery({ maxWidth: 853 });
+  const containerRef = useRef(null);
+  const inView = useInView(containerRef, { margin: "200px" });
 
   // Memoize astronaut props to prevent re-renders
   const astronautProps = useMemo(
@@ -52,6 +55,7 @@ const Hero = () => {
   return (
     <section
       id="home"
+      ref={containerRef}
       className="relative left-1/2 flex h-[100dvh] min-h-[100dvh] w-screen -translate-x-1/2 items-start overflow-hidden"
     >
       <div className="relative z-10 mx-auto w-full max-w-7xl c-space">
@@ -62,14 +66,16 @@ const Hero = () => {
         className="pointer-events-none absolute inset-0 h-full w-full"
         style={{ willChange: "transform" }}
       >
-        <Canvas {...canvasProps}>
-          <Suspense fallback={<Loader />}>
-            <Float floatIntensity={0.5} speed={1.5}>
-              <MemoizedAstronaut {...astronautProps} />
-            </Float>
-            <Rig />
-          </Suspense>
-        </Canvas>
+        {!isMobile && inView && (
+          <Canvas {...canvasProps}>
+            <Suspense fallback={<Loader />}>
+              <Float floatIntensity={0.5} speed={1.5}>
+                <MemoizedAstronaut {...astronautProps} />
+              </Float>
+              <Rig />
+            </Suspense>
+          </Canvas>
+        )}
       </figure>
     </section>
   );

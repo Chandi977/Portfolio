@@ -76,11 +76,13 @@ export const Particles = memo(function Particles({
     rgb.current = hexToRgb(color);
   }, [color]);
 
+  const isVisible = useRef(true);
+
   useEffect(() => {
     if (canvasRef.current) {
       context.current = canvasRef.current.getContext("2d", {
         alpha: true,
-        desynchronized: true, // Enable desynchronized for smoother rendering
+        desynchronized: true,
       });
     }
     initCanvas();
@@ -95,16 +97,30 @@ export const Particles = memo(function Particles({
       }, 200);
     };
 
+    // Pause RAF when off-screen — critical perf win
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisible.current = entry.isIntersecting;
+        if (entry.isIntersecting && !rafID.current) {
+          animate();
+        }
+      },
+      { threshold: 0 }
+    );
+    if (canvasContainerRef.current) observer.observe(canvasContainerRef.current);
+
     window.addEventListener("resize", handleResize, { passive: true });
 
     return () => {
       if (rafID.current != null) {
         window.cancelAnimationFrame(rafID.current);
+        rafID.current = null;
       }
       if (resizeTimeout.current) {
         clearTimeout(resizeTimeout.current);
       }
       window.removeEventListener("resize", handleResize);
+      observer.disconnect();
     };
   }, [color]);
 
@@ -223,6 +239,11 @@ export const Particles = memo(function Particles({
   }, []);
 
   const animate = useCallback(() => {
+    // Stop the loop when off-screen — IntersectionObserver restarts it
+    if (!isVisible.current) {
+      rafID.current = null;
+      return;
+    }
     clearContext();
     circles.current.forEach((circle, i) => {
       // Handle the alpha value

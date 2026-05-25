@@ -84,7 +84,6 @@ body {
   background: #030412;
   font-family: var(--font-body);
   color: white;
-  scroll-behavior: smooth;
   overflow-x: hidden;
   /* Establish a non-static positioned scroll container so motion/react's
      useScroll can resolve offsets without warnings. */
@@ -225,11 +224,9 @@ body {
   background-clip: text;
 }
 
-/* Smooth scrolling */
+/* Native smooth scrolling — single source of truth, no JS overhead */
 html {
   scroll-behavior: smooth;
-  /* Motion resolves window-scroll offsets against the document root. */
-  position: relative;
 }
 
 /* Custom scrollbar for webkit browsers */
@@ -250,67 +247,13 @@ html {
   background: rgb(82 82 82);
 }
 
-/* Section spacing utility if not already defined */
-.section-spacing {
-  padding-top: 2rem;
-  padding-bottom: 2rem;
-}
 
-@media (min-width: 768px) {
-  .section-spacing {
-    padding-top: 8rem;
-    padding-bottom: 8rem;
-  }
-}
-
-/* Container spacing utility if not already defined */
-.c-space {
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
-}
-
-@media (min-width: 640px) {
-  .c-space {
-    padding-left: 2rem;
-    padding-right: 2rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .c-space {
-    padding-left: 3rem;
-    padding-right: 3rem;
-  }
-}
-
-@media (min-width: 1280px) {
-  .c-space {
-    padding-left: 4rem;
-    padding-right: 4rem;
-  }
-}
 
 /* ============================================================
    STARLOG — engineering-atlas scrollytelling chapter
    ============================================================ */
 
-/* Lenis required defaults */
-html.lenis,
-html.lenis body {
-  height: auto;
-}
-.lenis.lenis-smooth {
-  scroll-behavior: auto !important;
-}
-.lenis.lenis-smooth [data-lenis-prevent] {
-  overscroll-behavior: contain;
-}
-.lenis.lenis-stopped {
-  overflow: hidden;
-}
-.lenis.lenis-scrolling iframe {
-  pointer-events: none;
-}
+
 
 .font-mono-tight {
   font-family: var(--font-mono);

@@ -1,5 +1,8 @@
-import { memo, useRef } from "react";
-import { motion, useInView, useScroll, useTransform, useSpring } from "motion/react";
+
+import { memo, useRef, useEffect } from "react";
+import { motion, useInView } from "motion/react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { experiences } from "../constants";
 import {
   ChapterFrame,
@@ -9,14 +12,13 @@ import {
   Hairline,
 } from "../components/starlog/ds";
 
+gsap.registerPlugin(ScrollTrigger);
+
 /* ============================================================
    TRANSMISSION 06 // ARCHIVE  —  MISSION DOSSIERS
-   A completely different layout from the rest of the chapters:
-   no pinned scrollytelling. A vertical spine runs down the
-   chapter; each experience is a perforated dossier folder
-   that snaps in from the left or right of the spine as it
-   enters the viewport. Stamps, classification tags, and a
-   tracking barcode give each card its own character.
+   No pinned scrollytelling. Vertical spine with dossier cards
+   that enter via useInView (viewport-triggered → stays motion/react).
+   Only the spine fill height is scroll-bound → GSAP ScrollTrigger.
    ============================================================ */
 
 const TONES = ["lavender", "aqua", "coral", "mint"];
@@ -40,12 +42,27 @@ const Experiences = () => {
   })();
 
   const sectionRef = useRef(null);
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start end", "end start"],
-  });
-  const smoothP = useSpring(scrollYProgress, { damping: 30, stiffness: 180 });
-  const spineHeight = useTransform(smoothP, [0.05, 0.92], ["0%", "100%"]);
+  const spineFillRef = useRef(null);
+
+  // Spine fill driven by GSAP ScrollTrigger (replaces useScroll + useTransform)
+  useEffect(() => {
+    const el = sectionRef.current;
+    const fill = spineFillRef.current;
+    if (!el || !fill) return;
+
+    const st = ScrollTrigger.create({
+      trigger: el,
+      start: "top bottom",
+      end: "bottom top",
+      scrub: 0,
+      onUpdate: (self) => {
+        const h = Math.max(0, Math.min(100, self.progress * 100));
+        fill.style.height = `${h}%`;
+      },
+    });
+
+    return () => st.kill();
+  }, []);
 
   return (
     <ChapterFrame id="experience" className="!mt-0">
@@ -61,9 +78,10 @@ const Experiences = () => {
             className="absolute left-4 sm:left-8 md:left-1/2 md:-translate-x-1/2 top-0 bottom-0 w-px bg-white/8"
           />
           {/* Filled portion — tracks scroll */}
-          <motion.div
+          <div
+            ref={spineFillRef}
             aria-hidden
-            style={{ height: spineHeight }}
+            style={{ height: "0%" }}
             className="absolute left-4 sm:left-8 md:left-1/2 md:-translate-x-1/2 top-0 w-px bg-gradient-to-b from-lavender via-aqua to-coral"
           />
 
@@ -98,7 +116,7 @@ const Experiences = () => {
 export default memo(Experiences);
 
 /* ============================================================
-   Departure-board header
+   Departure-board header (viewport-triggered — stays motion/react)
    ============================================================ */
 const ManifestHeader = memo(function ManifestHeader({ yearRange, count }) {
   const ref = useRef(null);
@@ -137,7 +155,6 @@ const ManifestHeader = memo(function ManifestHeader({ yearRange, count }) {
         the archive and stamped for review.
       </motion.p>
 
-      {/* Departure board strip — file count, year range, status */}
       <motion.div
         initial={{ opacity: 0, scaleX: 0 }}
         animate={inView ? { opacity: 1, scaleX: 1 } : {}}
@@ -181,7 +198,7 @@ const Slat = memo(function Slat({ label, value, tone, badge }) {
 });
 
 /* ============================================================
-   DossierEntry — perforated folder card alternating sides
+   DossierEntry — viewport-triggered (stays motion/react)
    ============================================================ */
 const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
   const ref = useRef(null);
@@ -227,7 +244,7 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
 
   return (
     <li ref={ref} className="relative">
-      {/* SPINE NODE — sits on the central rail */}
+      {/* SPINE NODE */}
       <motion.span
         initial={{ scale: 0 }}
         animate={inView ? { scale: 1 } : {}}
@@ -237,13 +254,12 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
         <span className={`relative block w-3.5 h-3.5 rounded-full ${tokens.bg} ring-4 ring-primary`}>
           <span className={`absolute inset-0 rounded-full ${tokens.bg} opacity-40 animate-ping`} />
         </span>
-        {/* Year tick to the LEFT of the spine */}
         <span className="hidden md:block absolute right-7 top-0 -translate-y-1 font-mono-tight text-[10px] tracking-[0.3em] text-neutral-500 whitespace-nowrap">
           {mo} {year}
         </span>
       </motion.span>
 
-      {/* Card container — alternates side on desktop, always right on mobile */}
+      {/* Card container */}
       <div
         className={`relative pl-12 sm:pl-20 md:pl-0 ${
           side === "left"
@@ -261,7 +277,7 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
           }}
           className={`group relative ${tokens.shadow}`}
         >
-          {/* Connector line from spine to card */}
+          {/* Connector line */}
           <span
             aria-hidden
             className={`hidden md:block absolute top-7 ${
@@ -269,26 +285,21 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
             } w-8 h-px ${tokens.bg} opacity-50`}
           />
 
-          {/* CARD — die-cut dossier */}
+          {/* CARD */}
           <div className={`relative bg-gradient-to-br ${tokens.from} via-midnight/85 to-primary border ${tokens.border} starlog-clip overflow-hidden`}>
-            {/* TOP STRIP — like a folder tab */}
+            {/* TOP STRIP */}
             <div className="relative flex items-stretch border-b border-white/10">
-              {/* File-no badge */}
               <div className={`px-4 py-2.5 ${tokens.bg} bg-opacity-20 border-r border-white/10 flex items-center gap-2`}>
                 <span className={`font-mono-tight text-[9px] tracking-[0.3em] ${tokens.accent} uppercase`}>
                   FILE · {fileNo}
                 </span>
               </div>
-
-              {/* Filler with barcode */}
               <div className="flex-1 px-4 py-2.5 flex items-center gap-3 overflow-hidden">
                 <Barcode tone={tone} />
                 <span className="font-mono-tight text-[9px] tracking-[0.32em] text-neutral-500 uppercase truncate">
                   {item.type || "ENGAGEMENT"} · {item.location?.split(",")[0] || "—"}
                 </span>
               </div>
-
-              {/* Year stamp */}
               <div className="px-4 py-2.5 border-l border-white/10 flex items-center gap-2">
                 <span className="font-display-tight text-xl text-white tracking-[-0.02em] tabular-nums">
                   {year}
@@ -300,12 +311,11 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
             <div className="relative grid grid-cols-1 lg:grid-cols-12">
               {/* MAIN COLUMN */}
               <div className="lg:col-span-8 p-5 md:p-7 relative">
-                {/* CLASSIFIED stamp (rotated) — only on inView for impact */}
                 <motion.div
                   initial={{ opacity: 0, scale: 0.5, rotate: -8 }}
                   animate={inView ? { opacity: 0.18, scale: 1, rotate: -8 } : {}}
                   transition={{ duration: 0.6, delay: 0.6 }}
-                  className={`absolute -top-3 ${side === "left" ? "right-4" : "right-4"} px-3 py-1 border-2 ${tokens.border} ${tokens.accent} font-display-tight text-2xl md:text-3xl tracking-[0.1em] pointer-events-none select-none italic`}
+                  className={`absolute -top-3 right-4 px-3 py-1 border-2 ${tokens.border} ${tokens.accent} font-display-tight text-2xl md:text-3xl tracking-[0.1em] pointer-events-none select-none italic`}
                   aria-hidden
                 >
                   {item.type === "Full-time" ? "ACTIVE" : "ARCHIVED"}
@@ -336,7 +346,6 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
                   </p>
                 )}
 
-                {/* RESPONSIBILITIES — typed-out list */}
                 {item.contents && item.contents.length > 0 && (
                   <div className="mt-5 md:mt-6 border-l-2 border-white/10 pl-4">
                     <MonoLabel tone="aqua" className="block mb-2">
@@ -350,7 +359,6 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
                   </div>
                 )}
 
-                {/* TECH = boarding-pass "ROUTES" */}
                 {item.technologies && (
                   <div className="mt-5 md:mt-6 pt-4 border-t border-white/10">
                     <div className="flex items-center gap-3 mb-2.5">
@@ -369,9 +377,8 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
                 )}
               </div>
 
-              {/* PERFORATED STUB — metrics column */}
+              {/* PERFORATED STUB */}
               <div className="lg:col-span-4 relative border-t lg:border-t-0 lg:border-l border-dashed border-white/15">
-                {/* Perforations along the inner edge */}
                 <span aria-hidden className="hidden lg:flex absolute left-0 top-0 bottom-0 -translate-x-1/2 flex-col justify-between py-4">
                   {Array.from({ length: 9 }).map((_, i) => (
                     <span key={i} className="block w-2 h-2 rounded-full bg-primary border border-white/15" />
@@ -386,7 +393,7 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
 
                   {item.metrics && item.metrics.length > 0 ? (
                     <ul className="space-y-3 flex-1">
-                      {item.metrics.slice(0, 3).map((m, i) => (
+                      {item.metrics.slice(0, 3).map((m) => (
                         <li key={m.label} className="border-l-2 border-white/10 pl-3 py-1">
                           <div className={`font-display-tight text-2xl md:text-3xl ${tokens.accent} tracking-[-0.02em] leading-none tabular-nums`}>
                             {m.value}
@@ -403,7 +410,6 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
                     </div>
                   )}
 
-                  {/* Footer hairline + signature */}
                   <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between font-mono-tight text-[9px] tracking-[0.28em] text-neutral-500 uppercase">
                     <span>CLR · {tone.slice(0, 3).toUpperCase()}</span>
                     <span>{index + 1}/{total}</span>
@@ -429,7 +435,7 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
 });
 
 /* ============================================================
-   Small sub-components
+   Small sub-components (viewport-triggered — stay motion/react)
    ============================================================ */
 
 const LogLine = memo(function LogLine({ text, index, inView, tone }) {
@@ -468,7 +474,6 @@ const RouteTag = memo(function RouteTag({ label, index, inView }) {
   );
 });
 
-/* Barcode — pseudo-random bars seeded from the index so it's stable per card */
 const Barcode = memo(function Barcode({ tone }) {
   const stroke = {
     lavender: "bg-lavender/70",
@@ -486,7 +491,6 @@ const Barcode = memo(function Barcode({ tone }) {
   );
 });
 
-/* Circular wax-seal style stamp */
 const SealStamp = memo(function SealStamp({ tone, index }) {
   const ring = {
     lavender: "border-lavender/70 text-lavender",

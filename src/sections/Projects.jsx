@@ -1,5 +1,4 @@
-import { memo, useState, useEffect } from "react";
-import { motion, useTransform } from "motion/react";
+import { memo, useState, useEffect, useRef } from "react";
 import { myProjects } from "../constants";
 import {
   PinnedStage,
@@ -9,7 +8,9 @@ import {
   MonoPill,
   StatusDot,
   Hairline,
+  useSubProgress,
 } from "../components/starlog/ds";
+import { interpolate } from "../hooks/useGSAPBeat";
 
 /* ============================================================
    TRANSMISSION 05 // DEPLOYMENTS
@@ -38,10 +39,7 @@ const Projects = () => (
 );
 
 const ProjectsBeats = ({ p }) => {
-  const introP = useTransform(p, [0, INTRO_END], [0, 1], { clamp: true });
-
-  // Continuous case-index (e.g. 0..N during the deploy range)
-  const caseIndex = useTransform(p, [INTRO_END, 1], [0, N], { clamp: true });
+  const introP = useSubProgress(p, 0, INTRO_END);
 
   return (
     <>
@@ -59,17 +57,16 @@ const ProjectsBeats = ({ p }) => {
               revealWindow={0.85}
             />
           </h2>
-          <motion.p
-            style={{ opacity: useTransform(introP, [0.7, 1], [0, 1]) }}
-            className="mt-10 font-mono-tight text-xs tracking-[0.4em] text-aqua/80 uppercase"
-          >
-            ↓ KEEP SCROLLING TO ADVANCE THE FEED
-          </motion.p>
+          <FadeIn progress={introP} start={0.7} end={1}>
+            <p className="mt-10 font-mono-tight text-xs tracking-[0.4em] text-aqua/80 uppercase">
+              ↓ KEEP SCROLLING TO ADVANCE THE FEED
+            </p>
+          </FadeIn>
         </div>
       </Beat>
 
       {/* Persistent case-index ticker (visible during deploys) */}
-      <CaseTicker p={p} caseIndex={caseIndex} />
+      <CaseTicker p={p} />
 
       {/* ════════ ONE BEAT PER PROJECT ════════ */}
       {myProjects.map((project, i) => {
@@ -101,84 +98,123 @@ const ProjectsBeats = ({ p }) => {
   );
 };
 
-const CaseTicker = memo(function CaseTicker({ p, caseIndex }) {
-  const opacity = useTransform(p, [INTRO_END, INTRO_END + 0.03, 0.94, 0.98], [0, 1, 1, 0]);
+/* ---------- FadeIn ---------- */
+const FadeIn = memo(function FadeIn({ progress, start, end, children }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!progress) return;
+    return progress.onChange((p) => {
+      if (ref.current) ref.current.style.opacity = interpolate(p, [start, end], [0, 1]);
+    });
+  }, [progress, start, end]);
+  return <div ref={ref} style={{ opacity: 0 }}>{children}</div>;
+});
+
+/* ---------- CaseTicker ---------- */
+const CaseTicker = memo(function CaseTicker({ p }) {
+  const ref = useRef(null);
+  const [v, setV] = useState(1);
+
+  useEffect(() => {
+    if (!p) return;
+    return p.onChange((progress) => {
+      // Opacity
+      if (ref.current) {
+        ref.current.style.opacity = interpolate(
+          progress,
+          [INTRO_END, INTRO_END + 0.03, 0.94, 0.98],
+          [0, 1, 1, 0]
+        );
+      }
+      // Case number
+      const caseIdx = interpolate(progress, [INTRO_END, 1], [0, N]);
+      setV(Math.min(N, Math.floor(caseIdx) + 1));
+    });
+  }, [p]);
+
   return (
-    <motion.div
-      style={{ opacity }}
+    <div
+      ref={ref}
+      style={{ opacity: 0 }}
       className="absolute top-24 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4"
     >
       <MonoLabel tone="coral">CASE · FILE</MonoLabel>
       <span className="block w-px h-4 bg-white/20" />
-      <CaseNumber mv={caseIndex} />
+      <span className="font-display-tight text-2xl text-white tabular-nums tracking-[-0.02em]">
+        {String(v).padStart(2, "0")}
+      </span>
       <span className="font-mono-tight text-sm text-neutral-500">/ {String(N).padStart(2, "0")}</span>
-    </motion.div>
+    </div>
   );
 });
 
-const CaseNumber = memo(function CaseNumber({ mv }) {
-  const [v, setV] = useState(1);
-  useEffect(() => mv.on("change", (x) => setV(Math.min(N, Math.floor(x) + 1))), [mv]);
-  return (
-    <span className="font-display-tight text-2xl text-white tabular-nums tracking-[-0.02em]">
-      {String(v).padStart(2, "0")}
-    </span>
-  );
-});
-
-/* ---------- ProjectBeat ----------
-   Timing contract (all in localP, 0..1 across this project's beat):
-     0.00 → 0.18   fade-in window (beat opacity ramps up)
-     0.18 → 0.55   content reveals (image, copy, tech tags) — STAGGER PLAYS
-     0.55 → 0.82   HOLD — everything fully visible
-     0.82 → 1.00   fade-out window (beat opacity ramps down)
-*/
+/* ---------- ProjectBeat ---------- */
 const ProjectBeat = memo(function ProjectBeat({ project, index, p, start, end }) {
-  const localP = useTransform(p, [start, end], [0, 1], { clamp: true });
+  const localP = useSubProgress(p, start, end);
 
-  // Wider fade-in/out so the beat is fully visible during the reveal stagger
-  const beatOpacity = useTransform(
-    p,
-    [start, start + (end - start) * 0.18, end - (end - start) * 0.18, end],
-    [0, 1, 1, 0],
-  );
+  const outerRef = useRef(null);
+  const indexRef = useRef(null);
+  const imgRef = useRef(null);
+  const infoRef = useRef(null);
 
-  // Image: starts off-screen right, slides to center, exits left
-  const imgX = useTransform(localP, [0, 0.5, 1], ["30%", "0%", "-15%"]);
-  const imgScale = useTransform(localP, [0, 0.5, 1], [1.15, 1.0, 0.95]);
-  const imgOpacity = useTransform(localP, [0, 0.18, 0.82, 1], [0, 1, 1, 0]);
+  useEffect(() => {
+    if (!localP) return;
+    return localP.onChange((lp) => {
+      // Outer beat opacity + drift
+      if (outerRef.current) {
+        const opacity = interpolate(lp, [0, 0.18, 0.82, 1], [0, 1, 1, 0]);
+        const bgX = interpolate(lp, [0, 1], [-3, 3]);
+        outerRef.current.style.opacity = opacity;
+        outerRef.current.style.transform = `translateX(${bgX}%)`;
+      }
 
-  // Info: rises from below — completes BEFORE the hold window starts
-  const infoY = useTransform(localP, [0.05, 0.35], ["40%", "0%"]);
-  const infoOpacity = useTransform(localP, [0, 0.20, 0.82, 1], [0, 1, 1, 0]);
+      // Giant index
+      if (indexRef.current) {
+        indexRef.current.style.opacity = interpolate(lp, [0, 0.18, 0.82, 1], [0, 1, 1, 0]);
+        indexRef.current.style.transform = `translateY(${interpolate(lp, [0, 1], [-10, 10])}%)`;
+      }
 
-  // Giant index number that ticks across
-  const indexY = useTransform(localP, [0, 1], ["-10%", "10%"]);
-  const indexOpacity = useTransform(localP, [0, 0.18, 0.82, 1], [0, 1, 1, 0]);
+      // Image parallax
+      if (imgRef.current) {
+        const imgX = interpolate(lp, [0, 0.5, 1], [30, 0, -15]);
+        const imgScale = interpolate(lp, [0, 0.5, 1], [1.15, 1.0, 0.95]);
+        const imgOp = interpolate(lp, [0, 0.18, 0.82, 1], [0, 1, 1, 0]);
+        imgRef.current.style.transform = `translateX(${imgX}%) scale(${imgScale})`;
+        imgRef.current.style.opacity = imgOp;
+      }
 
-  const bgX = useTransform(localP, [0, 1], ["-3%", "3%"]);
+      // Info rise
+      if (infoRef.current) {
+        infoRef.current.style.transform = `translateY(${interpolate(lp, [0.05, 0.35], [40, 0])}%)`;
+        infoRef.current.style.opacity = interpolate(lp, [0, 0.20, 0.82, 1], [0, 1, 1, 0]);
+      }
+    });
+  }, [localP]);
 
   return (
-    <motion.div
-      style={{ opacity: beatOpacity, x: bgX }}
+    <div
+      ref={outerRef}
+      style={{ opacity: 0, willChange: "transform, opacity" }}
       className="absolute inset-0 flex items-center"
     >
-      {/* GIANT INDEX (left half, background) */}
-      <motion.div
-        style={{ y: indexY, opacity: indexOpacity }}
+      {/* GIANT INDEX */}
+      <div
+        ref={indexRef}
         aria-hidden
+        style={{ opacity: 0, willChange: "transform" }}
         className="absolute left-[-8vw] top-1/2 -translate-y-1/2 font-display-tight tracking-[-0.07em] text-white/[0.04] select-none pointer-events-none"
       >
         <span className="text-[44vh] leading-none italic">
           {String(index + 1).padStart(2, "0")}
         </span>
-      </motion.div>
+      </div>
 
       <div className="relative max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 px-6 lg:px-16 py-24">
-        {/* IMAGE — right side, parallax in */}
-        <motion.div
-          style={{ x: imgX, scale: imgScale, opacity: imgOpacity }}
-          className="lg:col-span-7 lg:order-2 relative starlog-clip border border-lavender/30 bg-primary overflow-hidden h-[280px] md:h-[400px] lg:h-[500px] will-change-transform"
+        {/* IMAGE */}
+        <div
+          ref={imgRef}
+          style={{ opacity: 0, willChange: "transform, opacity" }}
+          className="lg:col-span-7 lg:order-2 relative starlog-clip border border-lavender/30 bg-primary overflow-hidden h-[280px] md:h-[400px] lg:h-[500px]"
         >
           <img
             src={project.image}
@@ -187,7 +223,6 @@ const ProjectBeat = memo(function ProjectBeat({ project, index, p, start, end })
             decoding="async"
             className="w-full h-full object-cover"
           />
-          {/* Scanlines + corner brackets */}
           <div className="absolute inset-0 starlog-scanlines opacity-[0.08]" aria-hidden />
           <div className="absolute inset-0 bg-gradient-to-tr from-primary/60 via-transparent to-transparent pointer-events-none" />
 
@@ -200,11 +235,12 @@ const ProjectBeat = memo(function ProjectBeat({ project, index, p, start, end })
             <MonoLabel>{project.category || "WEB"}</MonoLabel>
             <MonoLabel tone="aqua">{project.stats?.year || "—"}</MonoLabel>
           </div>
-        </motion.div>
+        </div>
 
-        {/* INFO — left side, rises from below */}
-        <motion.div
-          style={{ y: infoY, opacity: infoOpacity }}
+        {/* INFO */}
+        <div
+          ref={infoRef}
+          style={{ opacity: 0, willChange: "transform, opacity" }}
           className="lg:col-span-5 lg:order-1 flex flex-col justify-center"
         >
           <div className="flex items-center gap-3 mb-4">
@@ -226,7 +262,6 @@ const ProjectBeat = memo(function ProjectBeat({ project, index, p, start, end })
             {project.description}
           </p>
 
-          {/* Tech pills (top 6) */}
           {project.technologies && (
             <div className="flex flex-wrap gap-1.5 mb-6">
               {project.technologies.slice(0, 6).map((t) => (
@@ -238,7 +273,6 @@ const ProjectBeat = memo(function ProjectBeat({ project, index, p, start, end })
             </div>
           )}
 
-          {/* Links */}
           <div className="flex gap-2 flex-wrap">
             {project.href && (
               <a
@@ -261,9 +295,9 @@ const ProjectBeat = memo(function ProjectBeat({ project, index, p, start, end })
               </a>
             )}
           </div>
-        </motion.div>
+        </div>
       </div>
-    </motion.div>
+    </div>
   );
 });
 

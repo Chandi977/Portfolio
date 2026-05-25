@@ -1,10 +1,65 @@
-import { memo, useEffect, useRef, useState } from "react";
-import { motion, useInView, useScroll, useTransform, useSpring } from "motion/react";
+
+import { memo, useEffect, useRef, useState, useCallback, createContext, useContext } from "react";
+import { motion, useInView } from "motion/react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { interpolate, interpolateString } from "../../hooks/useGSAPBeat";
+
+gsap.registerPlugin(ScrollTrigger);
 
 /* ============================================================
    STARLOG · Design-System primitives
    Every chapter composes from these.
+
+   GSAP ScrollTrigger drives all scroll-bound animations.
+   motion/react stays for viewport-triggered reveals (useInView)
+   and mount/hover animations only.
    ============================================================ */
+
+/* ── Progress context ─────────────────────────────────────── */
+const ProgressContext = createContext(null);
+export const useProgress = () => useContext(ProgressContext);
+
+/**
+ * Lightweight reactive progress object.
+ * Created once per PinnedStage and passed to children via context
+ * and render-props.
+ */
+function createProgress() {
+  let _value = 0;
+  const _listeners = new Set();
+  return {
+    get: () => _value,
+    set: (v) => {
+      _value = v;
+      for (const cb of _listeners) cb(v);
+    },
+    onChange: (cb) => {
+      _listeners.add(cb);
+      cb(_value);
+      return () => _listeners.delete(cb);
+    },
+  };
+}
+
+/**
+ * Hook: subscribe to a progress object and re-render when it changes.
+ * Use sparingly — only for components that MUST re-render (counters, text).
+ * For style-only updates, use refs + gsap.set in an onChange callback.
+ */
+export function useProgressValue(progress, mapFn) {
+  const [value, setValue] = useState(() =>
+    mapFn ? mapFn(progress.get()) : progress.get()
+  );
+  useEffect(() => {
+    return progress.onChange((p) => {
+      setValue(mapFn ? mapFn(p) : p);
+    });
+  }, [progress, mapFn]);
+  return value;
+}
+
+/* ── Purely visual primitives (unchanged) ─────────────────── */
 
 /** Tiny registration cross — print-atlas corner mark */
 export const RegMark = memo(function RegMark({ className = "" }) {
@@ -42,21 +97,53 @@ export const MonoLabel = memo(function MonoLabel({
 /** A status dot + pulse — used in headers */
 export const StatusDot = memo(function StatusDot({ tone = "aqua" }) {
   const map = {
-    aqua: "bg-aqua shadow-[0_0_10px_#33c2cc]",
-    coral: "bg-coral shadow-[0_0_10px_#ea4884]",
-    mint: "bg-mint shadow-[0_0_10px_#57db96]",
-    lavender: "bg-lavender shadow-[0_0_10px_#7a57db]",
+    aqua: "bg-aqua shadow-[0_0_8px_#33c2cc]",
+    coral: "bg-coral shadow-[0_0_8px_#ea4884]",
+    mint: "bg-mint shadow-[0_0_8px_#57db96]",
+    lavender: "bg-lavender shadow-[0_0_8px_#7a57db]",
   };
   return (
     <span className={`relative inline-flex w-2 h-2 rounded-full ${map[tone]}`}>
-      <span className="absolute inset-0 rounded-full animate-ping opacity-50" />
+      <span className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ animationDuration: "2.5s" }} />
     </span>
   );
 });
 
+/** A small mono pill — for tags, technologies, modes */
+export const MonoPill = memo(function MonoPill({ children, tone = "lavender" }) {
+  const toneMap = {
+    lavender: "border-lavender/40 text-lavender",
+    aqua: "border-aqua/40 text-aqua",
+    coral: "border-coral/40 text-coral",
+    mint: "border-mint/40 text-mint",
+    neutral: "border-white/15 text-neutral-300",
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border bg-black/30 font-mono-tight text-[10px] tracking-[0.18em] uppercase ${toneMap[tone]}`}
+    >
+      <span className="text-[8px] opacity-60">◇</span>
+      {children}
+    </span>
+  );
+});
+
+/** Tape-style number badge — used to index list items */
+export const IndexTape = memo(function IndexTape({ n, total }) {
+  return (
+    <div className="inline-flex items-center gap-2 font-mono-tight text-[10px] tracking-[0.3em] text-neutral-500">
+      <span className="text-lavender">{String(n).padStart(2, "0")}</span>
+      <span className="block w-6 h-px bg-neutral-700" />
+      <span>{String(total).padStart(2, "0")}</span>
+    </div>
+  );
+});
+
+/* ── Viewport-triggered reveals (stay as motion/react) ───── */
+
 /**
  * Chapter header — every section uses this as its opening title.
- * Looks like a transmission slate: index · callsign · status · title.
+ * Viewport-triggered (not scroll-bound), so stays as motion/react.
  */
 export const ChapterHeader = memo(function ChapterHeader({
   index,
@@ -70,7 +157,6 @@ export const ChapterHeader = memo(function ChapterHeader({
   const inView = useInView(ref, { once: true, margin: "-15% 0px" });
   return (
     <div ref={ref} className="relative">
-      {/* Top meta row */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={inView ? { opacity: 1, y: 0 } : {}}
@@ -90,7 +176,6 @@ export const ChapterHeader = memo(function ChapterHeader({
         )}
       </motion.div>
 
-      {/* Title */}
       <motion.h2
         initial={{ opacity: 0, y: 20 }}
         animate={inView ? { opacity: 1, y: 0 } : {}}
@@ -138,12 +223,10 @@ export const ChapterFrame = memo(function ChapterFrame({
     <section
       id={id}
       className={`relative ${bare ? "" : "section-spacing"} ${className}`}
-      // Full-bleed escape from parent max-width container
       style={{ width: "100vw", marginLeft: "calc(50% - 50vw)" }}
     >
       {!bare && (
         <>
-          {/* Soft atmosphere — drifts the eye across the page */}
           <div
             aria-hidden
             className="absolute inset-0 pointer-events-none"
@@ -213,28 +296,9 @@ export const TelemetryStat = memo(function TelemetryStat({
   );
 });
 
-/** A small mono pill — for tags, technologies, modes */
-export const MonoPill = memo(function MonoPill({ children, tone = "lavender" }) {
-  const toneMap = {
-    lavender: "border-lavender/40 text-lavender",
-    aqua: "border-aqua/40 text-aqua",
-    coral: "border-coral/40 text-coral",
-    mint: "border-mint/40 text-mint",
-    neutral: "border-white/15 text-neutral-300",
-  };
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border bg-black/30 font-mono-tight text-[10px] tracking-[0.18em] uppercase ${toneMap[tone]}`}
-    >
-      <span className="text-[8px] opacity-60">◇</span>
-      {children}
-    </span>
-  );
-});
-
 /**
  * BeatPanel — a single content panel framed like an instrument module.
- * Header row + content body + optional footer tag.
+ * Viewport-triggered, stays as motion/react.
  */
 export const BeatPanel = memo(function BeatPanel({
   index,
@@ -261,7 +325,6 @@ export const BeatPanel = memo(function BeatPanel({
       transition={{ duration: 0.7, delay, ease: [0.22, 1, 0.36, 1] }}
       className={`relative rounded-sm border ${toneBorder} bg-gradient-to-b from-midnight/80 to-primary/80 backdrop-blur-sm p-6 md:p-7 transition-colors group ${className}`}
     >
-      {/* Corner bracket */}
       <span className="absolute top-0 left-0 w-3 h-3 border-l border-t border-current opacity-50" />
       <span className="absolute top-0 right-0 w-3 h-3 border-r border-t border-current opacity-50" />
       <span className="absolute bottom-0 left-0 w-3 h-3 border-l border-b border-current opacity-50" />
@@ -286,7 +349,7 @@ export const BeatPanel = memo(function BeatPanel({
 
 /**
  * Reveal-on-view wrapper for arbitrary content.
- * Pass className so the motion wrapper participates in grid layout when needed.
+ * Viewport-triggered, stays as motion/react.
  */
 export const Reveal = memo(function Reveal({
   children,
@@ -309,26 +372,45 @@ export const Reveal = memo(function Reveal({
   );
 });
 
+/* ============================================================
+   SCROLL-BOUND PRIMITIVES — powered by GSAP ScrollTrigger
+   ============================================================ */
+
 /**
- * ScrollRail — a thin vertical progress indicator on the left edge of a section,
+ * ScrollRail — a thin vertical progress indicator on the left edge,
  * filling from top to bottom as the user scrolls through.
  */
 export const ScrollRail = memo(function ScrollRail({ targetRef, label = "CHAPTER" }) {
-  const { scrollYProgress } = useScroll({
-    target: targetRef,
-    offset: ["start end", "end start"],
-  });
-  const smooth = useSpring(scrollYProgress, { damping: 30, stiffness: 200 });
-  const height = useTransform(smooth, [0, 1], ["0%", "100%"]);
+  const fillRef = useRef(null);
+
+  useEffect(() => {
+    const el = targetRef.current;
+    const fill = fillRef.current;
+    if (!el || !fill) return;
+
+    const st = ScrollTrigger.create({
+      trigger: el,
+      start: "top bottom",
+      end: "bottom top",
+      scrub: 0,
+      onUpdate: (self) => {
+        fill.style.height = `${self.progress * 100}%`;
+      },
+    });
+
+    return () => st.kill();
+  }, [targetRef]);
+
   return (
     <div className="hidden lg:flex absolute top-1/2 -translate-y-1/2 left-2 xl:left-4 flex-col items-center gap-3 z-20 pointer-events-none">
       <span className="rotate-180 [writing-mode:vertical-rl] font-mono-tight text-[9px] tracking-[0.4em] text-neutral-500 uppercase">
         {label}
       </span>
       <div className="relative w-px h-[40vh] bg-white/10 overflow-hidden">
-        <motion.div
+        <div
+          ref={fillRef}
           className="absolute inset-x-0 top-0 bg-gradient-to-b from-lavender via-aqua to-coral"
-          style={{ height }}
+          style={{ height: "0%" }}
         />
       </div>
     </div>
@@ -337,15 +419,16 @@ export const ScrollRail = memo(function ScrollRail({ targetRef, label = "CHAPTER
 
 /* ============================================================
    PINNED SCROLLYTELLING PRIMITIVES
-   Use PinnedStage as the wrapper for any chapter that needs
-   beats overlaying inside one sticky viewport.
+   PinnedStage + Beat — GSAP ScrollTrigger
    ============================================================ */
 
 /**
  * PinnedStage — full-bleed container with a sticky h-screen panel.
- * Children receive scrollYProgress (MotionValue 0→1 across full height).
- * Renders persistent header, atmosphere, scanlines, grain, reg-marks,
- * and a bottom progress rail.
+ * GSAP ScrollTrigger drives a progress object (0→1) that children consume.
+ *
+ * Children receive the progress object via both:
+ *   1. Render-prop: children(progress)
+ *   2. React context: useProgress()
  */
 export const PinnedStage = memo(function PinnedStage({
   id,
@@ -357,13 +440,34 @@ export const PinnedStage = memo(function PinnedStage({
   children,
   hideHeader = false,
 }) {
-  const ref = useRef(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start start", "end end"],
-  });
-  const bgY = useTransform(scrollYProgress, [0, 1], ["0%", "-12%"]);
-  const railWidth = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
+  const outerRef = useRef(null);
+  const bgRef = useRef(null);
+  const railFillRef = useRef(null);
+  const [progress] = useState(() => createProgress());
+
+  useEffect(() => {
+    const outer = outerRef.current;
+    const bg = bgRef.current;
+    const railFill = railFillRef.current;
+    if (!outer) return;
+
+    const st = ScrollTrigger.create({
+      trigger: outer,
+      start: "top top",
+      end: "bottom bottom",
+      scrub: 0,
+      onUpdate: (self) => {
+        const p = self.progress;
+        progress.set(p);
+        // Atmosphere parallax
+        if (bg) bg.style.transform = `translateY(${interpolate(p, [0, 1], [0, -12])}%)`;
+        // Rail fill
+        if (railFill) railFill.style.width = `${p * 100}%`;
+      },
+    });
+
+    return () => st.kill();
+  }, [progress]);
 
   const toneText = {
     lavender: "text-lavender",
@@ -375,7 +479,7 @@ export const PinnedStage = memo(function PinnedStage({
   return (
     <section
       id={id}
-      ref={ref}
+      ref={outerRef}
       className="relative"
       style={{
         height: `${height}vh`,
@@ -385,13 +489,14 @@ export const PinnedStage = memo(function PinnedStage({
     >
       <div className="sticky top-0 h-screen overflow-hidden bg-primary">
         {/* Atmosphere */}
-        <motion.div
+        <div
+          ref={bgRef}
           aria-hidden
           className="absolute inset-0"
           style={{
             background:
               "radial-gradient(60% 60% at 50% 50%, rgba(122,87,219,0.14) 0%, rgba(3,4,18,0) 65%), radial-gradient(40% 40% at 80% 20%, rgba(51,194,204,0.09) 0%, rgba(3,4,18,0) 60%), radial-gradient(35% 35% at 15% 85%, rgba(234,72,132,0.07) 0%, rgba(3,4,18,0) 60%)",
-            y: bgY,
+            willChange: "transform",
           }}
         />
         <div className="starlog-scanlines" aria-hidden />
@@ -403,7 +508,7 @@ export const PinnedStage = memo(function PinnedStage({
         <span className="reg-mark" style={{ bottom: 24, left: 24 }} aria-hidden />
         <span className="reg-mark" style={{ bottom: 24, right: 24 }} aria-hidden />
 
-        {/* Persistent header — offset below the fixed navbar */}
+        {/* Persistent header */}
         {!hideHeader && (
           <div className="absolute top-24 md:top-28 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-3 font-mono-tight text-[9px] md:text-[10px] tracking-[0.4em] md:tracking-[0.5em] text-neutral-500 z-40 whitespace-nowrap px-4">
             <span className="hidden sm:block w-6 h-px bg-lavender/60" />
@@ -424,15 +529,18 @@ export const PinnedStage = memo(function PinnedStage({
             <span>01</span>
           </div>
           <div className="h-px bg-white/10 relative overflow-hidden">
-            <motion.div
+            <div
+              ref={railFillRef}
               className="absolute inset-y-0 left-0 bg-gradient-to-r from-lavender via-aqua to-coral"
-              style={{ width: railWidth }}
+              style={{ width: "0%" }}
             />
           </div>
         </div>
 
         {/* Beats live inside this container */}
-        {typeof children === "function" ? children(scrollYProgress) : children}
+        <ProgressContext.Provider value={progress}>
+          {typeof children === "function" ? children(progress) : children}
+        </ProgressContext.Provider>
       </div>
     </section>
   );
@@ -441,29 +549,49 @@ export const PinnedStage = memo(function PinnedStage({
 /**
  * Beat — wraps a single beat with absolute inset-0 and opacity tied
  * to a fade-in/peak/fade-out window of the parent scroll progress.
- * Children are positioned freely inside.
+ *
+ * range = [fadeInStart, peakStart, peakEnd, fadeOutEnd]
+ *
+ * Uses GSAP-style direct DOM updates via the progress object's onChange.
  */
 export const Beat = memo(function Beat({
   progress,
-  range, // [fadeInStart, peakStart, peakEnd, fadeOutEnd]
+  range,
   className = "",
   children,
-  style,
+  style: extraStyle,
 }) {
-  const opacity = useTransform(progress, range, [0, 1, 1, 0]);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!progress || !ref.current) return;
+    return progress.onChange((p) => {
+      const opacity = interpolate(p, range, [0, 1, 1, 0]);
+      const el = ref.current;
+      if (el) {
+        el.style.opacity = opacity;
+        // Toggle pointer-events so invisible beats don't block interaction
+        el.style.pointerEvents = opacity > 0.01 ? "auto" : "none";
+        // Toggle visibility to reduce compositing cost when fully hidden
+        el.style.visibility = opacity > 0.001 ? "visible" : "hidden";
+      }
+    });
+  }, [progress, range]);
+
   return (
-    <motion.div
+    <div
+      ref={ref}
       className={`absolute inset-0 ${className}`}
-      style={{ opacity, ...style }}
+      style={{ opacity: 0, willChange: "opacity", ...extraStyle }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 });
 
 /**
- * ScrollCounter — counts from `from` → `to` tied to a local progress MV.
- * Unlike TelemetryStat (which fires on view), this is fully scroll-bound.
+ * ScrollCounter — counts from `from` → `to` tied to a progress object.
+ * Fully scroll-bound via GSAP progress.
  */
 export const ScrollCounter = memo(function ScrollCounter({
   progress,
@@ -473,9 +601,15 @@ export const ScrollCounter = memo(function ScrollCounter({
   format = (n) => n.toLocaleString(),
   className = "",
 }) {
-  const v = useTransform(progress, [0, 1], [from, to]);
   const [n, setN] = useState(from);
-  useEffect(() => v.on("change", (x) => setN(Math.round(x))), [v]);
+
+  useEffect(() => {
+    if (!progress) return;
+    return progress.onChange((p) => {
+      setN(Math.round(from + p * (to - from)));
+    });
+  }, [progress, from, to]);
+
   return (
     <span className={`tabular-nums ${className}`}>
       {format(n)}
@@ -486,7 +620,9 @@ export const ScrollCounter = memo(function ScrollCounter({
 
 /**
  * WordReveal — splits a sentence into words and reveals each one
- * sequentially as `progress` moves from 0 → `revealWindow` (default 0.7).
+ * sequentially as scroll progress moves from 0 → revealWindow.
+ *
+ * Uses direct DOM style updates for performance.
  */
 export const WordReveal = memo(function WordReveal({
   progress,
@@ -505,7 +641,7 @@ export const WordReveal = memo(function WordReveal({
           word={w}
           index={i}
           total={words.length}
-          window={revealWindow}
+          revealWindow={revealWindow}
           className={wordClassName}
         />
       ))}
@@ -518,32 +654,138 @@ const WordChip = memo(function WordChip({
   word,
   index,
   total,
-  window: revealWindow,
+  revealWindow,
   className,
 }) {
+  const ref = useRef(null);
   const start = (index / total) * revealWindow;
   const end = start + 0.08;
-  const opacity = useTransform(progress, [start, end], [0, 1], { clamp: true });
-  const y = useTransform(progress, [start, end], [24, 0], { clamp: true });
-  const blur = useTransform(progress, [start, end], [8, 0], { clamp: true });
-  const filter = useTransform(blur, (v) => `blur(${v}px)`);
+
+  useEffect(() => {
+    if (!progress || !ref.current) return;
+    return progress.onChange((p) => {
+      const el = ref.current;
+      if (!el) return;
+      const opacity = interpolate(p, [start, end], [0, 1]);
+      const y = interpolate(p, [start, end], [24, 0]);
+      el.style.opacity = opacity;
+      el.style.transform = `translateY(${y}px)`;
+    });
+  }, [progress, start, end]);
+
   return (
-    <motion.span
-      style={{ opacity, y, filter, display: "inline-block" }}
+    <span
+      ref={ref}
+      style={{ opacity: 0, display: "inline-block", willChange: "transform, opacity" }}
       className={`mr-[0.25em] ${className}`}
     >
       {word}
-    </motion.span>
+    </span>
   );
 });
 
-/** Tape-style number badge — used to index list items */
-export const IndexTape = memo(function IndexTape({ n, total }) {
+/**
+ * ProgressDriven — a generic component that updates a ref's inline
+ * styles based on scroll progress. Takes a `styleFn(progress)` that
+ * returns a CSSStyleDeclaration-like object.
+ *
+ * Usage:
+ *   <ProgressDriven
+ *     progress={p}
+ *     styleFn={(p) => ({ opacity: interpolate(p, [...], [...]) })}
+ *     className="..."
+ *   >
+ *     {children}
+ *   </ProgressDriven>
+ */
+export const ProgressDriven = memo(function ProgressDriven({
+  progress,
+  styleFn,
+  className = "",
+  children,
+  tag: Tag = "div",
+}) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!progress || !ref.current) return;
+    return progress.onChange((p) => {
+      const el = ref.current;
+      if (!el) return;
+      const styles = styleFn(p);
+      for (const [key, val] of Object.entries(styles)) {
+        el.style[key] = typeof val === "number" && key !== "opacity" ? `${val}px` : val;
+      }
+    });
+  }, [progress, styleFn]);
+
   return (
-    <div className="inline-flex items-center gap-2 font-mono-tight text-[10px] tracking-[0.3em] text-neutral-500">
-      <span className="text-lavender">{String(n).padStart(2, "0")}</span>
-      <span className="block w-6 h-px bg-neutral-700" />
-      <span>{String(total).padStart(2, "0")}</span>
-    </div>
+    <Tag ref={ref} className={className}>
+      {children}
+    </Tag>
   );
 });
+
+/**
+ * useProgressStyle — hook version of ProgressDriven.
+ * Returns a ref to attach to your element. Applies styles via
+ * the styleFn callback on every progress change.
+ */
+export function useProgressStyle(progress, styleFn) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!progress || !ref.current) return;
+    return progress.onChange((p) => {
+      const el = ref.current;
+      if (!el) return;
+      const styles = styleFn(p);
+      for (const [key, val] of Object.entries(styles)) {
+        el.style[key] = typeof val === "number" && key !== "opacity" && key !== "scale"
+          ? `${val}px`
+          : String(val);
+      }
+    });
+  }, [progress, styleFn]);
+
+  return ref;
+}
+
+/**
+ * createSubProgress — derives a child progress from a parent progress
+ * by mapping a [start, end] range of the parent to [0, 1] in the child.
+ *
+ * This replaces: useTransform(parentP, [start, end], [0, 1], { clamp: true })
+ */
+export function createSubProgress(parentProgress, start, end) {
+  const sub = createProgress();
+  const unsub = parentProgress.onChange((p) => {
+    const clamped = Math.max(0, Math.min(1, (p - start) / (end - start || 0.001)));
+    sub.set(clamped);
+  });
+  // Attach unsub so callers can clean up
+  sub._unsub = unsub;
+  return sub;
+}
+
+/**
+ * useSubProgress — hook that creates and manages a sub-progress
+ * derived from a parent progress over a [start, end] range.
+ */
+export function useSubProgress(parentProgress, start, end) {
+  const subRef = useRef(null);
+
+  if (!subRef.current) {
+    subRef.current = createProgress();
+  }
+
+  useEffect(() => {
+    if (!parentProgress) return;
+    return parentProgress.onChange((p) => {
+      const clamped = Math.max(0, Math.min(1, (p - start) / (end - start || 0.001)));
+      subRef.current.set(clamped);
+    });
+  }, [parentProgress, start, end]);
+
+  return subRef.current;
+}

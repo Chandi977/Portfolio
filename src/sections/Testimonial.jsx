@@ -1,5 +1,4 @@
-import { memo } from "react";
-import { motion, useTransform } from "motion/react";
+import { memo, useRef, useEffect } from "react";
 import { reviews } from "../constants";
 import {
   PinnedStage,
@@ -8,7 +7,9 @@ import {
   MonoLabel,
   StatusDot,
   Hairline,
+  useSubProgress,
 } from "../components/starlog/ds";
+import { interpolate } from "../hooks/useGSAPBeat";
 
 /* ============================================================
    TRANSMISSION 07 // INTERCEPTS
@@ -32,13 +33,9 @@ const Testimonial = () => (
 );
 
 const TestimonialBeats = ({ p }) => {
-  const intro = useTransform(p, [0, 0.15], [0, 1], { clamp: true });
-  const feed = useTransform(p, [0.15, 0.85], [0, 1], { clamp: true });
-  const outro = useTransform(p, [0.85, 1.0], [0, 1], { clamp: true });
-
-  // Two band x-translations bound to scroll
-  const bandAX = useTransform(feed, [0, 1], ["10%", "-110%"]);
-  const bandBX = useTransform(feed, [0, 1], ["-110%", "10%"]);
+  const introP = useSubProgress(p, 0, 0.15);
+  const feedP = useSubProgress(p, 0.15, 0.85);
+  const outroP = useSubProgress(p, 0.85, 1.0);
 
   const firstHalf = reviews.slice(0, Math.ceil(reviews.length / 2));
   const secondHalf = reviews.slice(Math.ceil(reviews.length / 2));
@@ -56,17 +53,16 @@ const TestimonialBeats = ({ p }) => {
           </div>
           <h2 className="font-display-tight italic text-3xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1] tracking-[-0.04em] text-white max-w-5xl">
             <WordReveal
-              progress={intro}
+              progress={introP}
               text="Signals from people I've shipped with."
               revealWindow={0.85}
             />
           </h2>
-          <motion.p
-            style={{ opacity: useTransform(intro, [0.7, 1], [0, 1]) }}
-            className="mt-10 font-mono-tight text-xs tracking-[0.4em] text-coral/80 uppercase"
-          >
-            ↓ SCROLL TO RECEIVE FEED
-          </motion.p>
+          <FadeIn progress={introP} start={0.7} end={1}>
+            <p className="mt-10 font-mono-tight text-xs tracking-[0.4em] text-coral/80 uppercase">
+              ↓ SCROLL TO RECEIVE FEED
+            </p>
+          </FadeIn>
         </div>
       </Beat>
 
@@ -74,13 +70,12 @@ const TestimonialBeats = ({ p }) => {
       <Beat progress={p} range={[0.13, 0.18, 0.82, 0.88]}>
         <div className="absolute inset-0 flex flex-col justify-center">
           {/* Header tag */}
-          <motion.div
-            style={{ opacity: useTransform(feed, [0, 0.1], [0, 1]) }}
-            className="absolute top-24 left-1/2 -translate-x-1/2 flex items-center gap-3 z-30"
-          >
-            <StatusDot tone="aqua" />
-            <MonoLabel tone="aqua">::FEED · LIVE</MonoLabel>
-          </motion.div>
+          <FadeIn progress={feedP} start={0} end={0.1}>
+            <div className="absolute top-24 left-1/2 -translate-x-1/2 flex items-center gap-3 z-30">
+              <StatusDot tone="aqua" />
+              <MonoLabel tone="aqua">::FEED · LIVE</MonoLabel>
+            </div>
+          </FadeIn>
 
           {/* Band A */}
           <div className="relative mb-6 md:mb-10">
@@ -90,14 +85,7 @@ const TestimonialBeats = ({ p }) => {
               <MonoLabel>{firstHalf.length} INTERCEPTS</MonoLabel>
             </div>
             <div className="relative overflow-hidden">
-              <motion.div
-                style={{ x: bandAX }}
-                className="flex gap-5 will-change-transform"
-              >
-                {firstHalf.map((r, i) => (
-                  <InterceptCard key={r.username} review={r} index={i} feed={feed} band="A" />
-                ))}
-              </motion.div>
+              <BandStrip items={firstHalf} feedP={feedP} direction={1} band="A" />
             </div>
           </div>
 
@@ -109,14 +97,7 @@ const TestimonialBeats = ({ p }) => {
               <MonoLabel>{secondHalf.length} INTERCEPTS</MonoLabel>
             </div>
             <div className="relative overflow-hidden">
-              <motion.div
-                style={{ x: bandBX }}
-                className="flex gap-5 will-change-transform"
-              >
-                {secondHalf.map((r, i) => (
-                  <InterceptCard key={r.username} review={r} index={i} feed={feed} band="B" />
-                ))}
-              </motion.div>
+              <BandStrip items={secondHalf} feedP={feedP} direction={-1} band="B" />
             </div>
           </div>
 
@@ -134,47 +115,71 @@ const TestimonialBeats = ({ p }) => {
 
       {/* ════ BEAT 3 — SIGNOFF ════ */}
       <Beat progress={p} range={[0.85, 0.90, 1.0, 1.0]}>
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12 text-center">
-          <MonoLabel tone="coral" className="mb-6">END · TRANSMISSION 07</MonoLabel>
-          <h3 className="font-display-tight italic text-4xl md:text-6xl text-white tracking-[-0.04em] leading-[1.05] max-w-3xl mb-8">
-            {reviews.length} signals captured. Feed remains open.
-          </h3>
-          <motion.div
-            style={{ scaleX: useTransform(outro, [0.3, 1], [0, 1]), transformOrigin: "center" }}
-            className="mt-6 w-[min(640px,80vw)]"
-          >
-            <Hairline />
-            <div className="mt-3 flex justify-between font-mono-tight text-[10px] tracking-[0.4em] text-neutral-500">
-              <span>07 · INTERCEPTS</span>
-              <span>↓ 08 · UPLINK</span>
-            </div>
-          </motion.div>
-        </div>
+        <SignoffBeat outroP={outroP} />
       </Beat>
     </>
   );
 };
 
-/* ---------- InterceptCard with scanline capture animation ---------- */
-const InterceptCard = memo(function InterceptCard({ review, index, feed, band }) {
-  // Determine when this card crosses the center scanline.
-  // For band A, x goes from 10% to -110% (total -120% travel). Each card travels through center
-  // at some fraction of feed progress depending on its index and the strip's width per card.
-  // We use a generic capture window centered around when this card is near the middle.
-  // Since the strip translates monotonically, we can approximate by mapping index → progress slot.
-  // Per-card window is roughly: 0.05 wide, centered at fraction of strip travel.
-  // We don't know exact widths; we use a simple sequential schedule and let the animation feel right.
-  const cardWidth = 0.06; // window width in feed-progress
-  const baseShift = band === "A" ? 0.12 : 0.06; // band B leads slightly
+/* ---------- FadeIn ---------- */
+const FadeIn = memo(function FadeIn({ progress, start, end, children }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!progress) return;
+    return progress.onChange((p) => {
+      if (ref.current) ref.current.style.opacity = interpolate(p, [start, end], [0, 1]);
+    });
+  }, [progress, start, end]);
+  return <div ref={ref} style={{ opacity: 0 }}>{children}</div>;
+});
+
+/* ---------- BandStrip ---------- */
+const BandStrip = memo(function BandStrip({ items, feedP, direction, band }) {
+  const stripRef = useRef(null);
+
+  useEffect(() => {
+    if (!feedP) return;
+    return feedP.onChange((p) => {
+      if (!stripRef.current) return;
+      const x = direction > 0
+        ? interpolate(p, [0, 1], [10, -110])
+        : interpolate(p, [0, 1], [-110, 10]);
+      stripRef.current.style.transform = `translateX(${x}%)`;
+    });
+  }, [feedP, direction]);
+
+  return (
+    <div
+      ref={stripRef}
+      className="flex gap-5 will-change-transform"
+      style={{ willChange: "transform" }}
+    >
+      {items.map((r, i) => (
+        <InterceptCard key={r.username} review={r} index={i} feedP={feedP} band={band} />
+      ))}
+    </div>
+  );
+});
+
+/* ---------- InterceptCard ---------- */
+const InterceptCard = memo(function InterceptCard({ review, index, feedP, band }) {
+  const glowRef = useRef(null);
+
+  const cardWidth = 0.06;
+  const baseShift = band === "A" ? 0.12 : 0.06;
   const slot = baseShift + index * cardWidth;
 
-  // Scanline opacity peaks at the slot center
-  const captureGlow = useTransform(
-    feed,
-    [slot - cardWidth / 2, slot, slot + cardWidth / 2],
-    [0, 1, 0],
-    { clamp: true },
-  );
+  useEffect(() => {
+    if (!feedP || !glowRef.current) return;
+    return feedP.onChange((p) => {
+      const glow = interpolate(
+        p,
+        [slot - cardWidth / 2, slot, slot + cardWidth / 2],
+        [0, 1, 0]
+      );
+      glowRef.current.style.opacity = glow;
+    });
+  }, [feedP, slot, cardWidth]);
 
   const tone = ["lavender", "aqua", "coral", "mint"][index % 4];
   const toneClasses = {
@@ -187,19 +192,20 @@ const InterceptCard = memo(function InterceptCard({ review, index, feed, band })
   const freq = (47 + index * 3.7).toFixed(2);
 
   return (
-    <motion.figure
+    <figure
       className={`relative shrink-0 w-72 h-auto starlog-clip border ${toneClasses.border} bg-gradient-to-b from-midnight/85 to-primary/85 px-4 py-4 ${toneClasses.glow}`}
     >
       {/* Capture scanline overlay */}
-      <motion.div
+      <div
+        ref={glowRef}
         aria-hidden
-        style={{ opacity: captureGlow }}
+        style={{ opacity: 0 }}
         className="absolute inset-0 pointer-events-none"
       >
         <div className="absolute inset-x-0 top-0 h-px bg-white/80" />
         <div className="absolute inset-x-0 bottom-0 h-px bg-white/80" />
         <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] via-transparent to-white/[0.08]" />
-      </motion.div>
+      </div>
 
       <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
         <div className="flex items-center gap-2">
@@ -244,7 +250,41 @@ const InterceptCard = memo(function InterceptCard({ review, index, feed, band })
         </span>
         <span className={`font-mono-tight text-[9px] tracking-[0.25em] ${toneClasses.text}`}>OK</span>
       </div>
-    </motion.figure>
+    </figure>
+  );
+});
+
+/* ---------- SignoffBeat ---------- */
+const SignoffBeat = memo(function SignoffBeat({ outroP }) {
+  const hairRef = useRef(null);
+
+  useEffect(() => {
+    if (!outroP) return;
+    return outroP.onChange((p) => {
+      if (hairRef.current) {
+        hairRef.current.style.transform = `scaleX(${interpolate(p, [0.3, 1], [0, 1])})`;
+      }
+    });
+  }, [outroP]);
+
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12 text-center">
+      <MonoLabel tone="coral" className="mb-6">END · TRANSMISSION 07</MonoLabel>
+      <h3 className="font-display-tight italic text-4xl md:text-6xl text-white tracking-[-0.04em] leading-[1.05] max-w-3xl mb-8">
+        {reviews.length} signals captured. Feed remains open.
+      </h3>
+      <div
+        ref={hairRef}
+        style={{ transformOrigin: "center", transform: "scaleX(0)" }}
+        className="mt-6 w-[min(640px,80vw)]"
+      >
+        <Hairline />
+        <div className="mt-3 flex justify-between font-mono-tight text-[10px] tracking-[0.4em] text-neutral-500">
+          <span>07 · INTERCEPTS</span>
+          <span>↓ 08 · UPLINK</span>
+        </div>
+      </div>
+    </div>
   );
 });
 

@@ -1,20 +1,5 @@
-import { memo, useEffect, useState } from "react";
-import { motion, useTransform } from "motion/react";
-
-const RollingNumber = ({ progress, from = 0, to = 100, format = (n) => n.toLocaleString(), suffix = "" }) => {
-  const v = useTransform(progress, [0, 1], [from, to]);
-  const [display, setDisplay] = useState(format(from));
-  useEffect(() => {
-    const unsub = v.on("change", (val) => setDisplay(format(Math.round(val))));
-    return () => unsub();
-  }, [v, format]);
-  return (
-    <span className="font-mono-tight tabular-nums">
-      {display}
-      {suffix}
-    </span>
-  );
-};
+import { memo, useRef, useEffect, useState } from "react";
+import { interpolate } from "../../hooks/useGSAPBeat";
 
 const stats = [
   { label: "COMMITS / YEAR", from: 0, to: 1428, suffix: "" },
@@ -34,18 +19,60 @@ const logLines = [
   "→ mongo.index  ::  built compound(idx,ts)",
 ];
 
+const RollingNumber = memo(function RollingNumber({ progress, from, to, suffix, format = (n) => n.toLocaleString() }) {
+  const [display, setDisplay] = useState(format(from));
+
+  useEffect(() => {
+    if (!progress) return;
+    return progress.onChange((p) => {
+      const val = Math.round(from + p * (to - from));
+      setDisplay(format(val));
+    });
+  }, [progress, from, to, format]);
+
+  return (
+    <span className="font-mono-tight tabular-nums">
+      {display}
+      {suffix}
+    </span>
+  );
+});
+
 const Telemetry = ({ progress }) => {
-  const fade = useTransform(progress, [0, 0.12, 0.88, 1], [0, 1, 1, 0]);
-  const slideL = useTransform(progress, [0, 0.2], [-30, 0]);
-  const slideR = useTransform(progress, [0, 0.2], [30, 0]);
-  const tape = useTransform(progress, [0, 1], [0, -100 * (logLines.length - 1)]);
+  const leftRef = useRef(null);
+  const rightRef = useRef(null);
+  const tapeRef = useRef(null);
+
+  useEffect(() => {
+    if (!progress) return;
+    return progress.onChange((p) => {
+      const left = leftRef.current;
+      const right = rightRef.current;
+      const tape = tapeRef.current;
+
+      const fade = interpolate(p, [0, 0.12, 0.88, 1], [0, 1, 1, 0]);
+
+      if (left) {
+        left.style.opacity = fade;
+        left.style.transform = `translateY(-50%) translateX(${interpolate(p, [0, 0.2], [-30, 0])}px)`;
+      }
+      if (right) {
+        right.style.opacity = fade;
+        right.style.transform = `translateY(-50%) translateX(${interpolate(p, [0, 0.2], [30, 0])}px)`;
+      }
+      if (tape) {
+        tape.style.transform = `translateY(${interpolate(p, [0, 1], [0, -100 * (logLines.length - 1)])}px)`;
+      }
+    });
+  }, [progress]);
 
   return (
     <>
       {/* LEFT — telemetry stack */}
-      <motion.aside
-        className="absolute left-6 md:left-10 top-1/2 -translate-y-1/2 z-20 max-w-[260px] hidden md:block"
-        style={{ opacity: fade, x: slideL }}
+      <aside
+        ref={leftRef}
+        className="absolute left-6 md:left-10 top-1/2 z-20 max-w-[260px] hidden md:block"
+        style={{ opacity: 0, transform: "translateY(-50%)", willChange: "transform, opacity" }}
       >
         <div className="flex items-center gap-2 mb-5">
           <span className="block w-2 h-2 rounded-full bg-coral shadow-[0_0_10px_#ea4884] animate-pulse" />
@@ -65,12 +92,13 @@ const Telemetry = ({ progress }) => {
             </li>
           ))}
         </ul>
-      </motion.aside>
+      </aside>
 
-      {/* RIGHT — log tape (text scrolls within a clipped window) */}
-      <motion.aside
-        className="absolute right-6 md:right-10 top-1/2 -translate-y-1/2 z-20 w-[260px] hidden md:block"
-        style={{ opacity: fade, x: slideR }}
+      {/* RIGHT — log tape */}
+      <aside
+        ref={rightRef}
+        className="absolute right-6 md:right-10 top-1/2 z-20 w-[260px] hidden md:block"
+        style={{ opacity: 0, transform: "translateY(-50%)", willChange: "transform, opacity" }}
       >
         <div className="flex items-center justify-between mb-5">
           <span className="font-mono-tight text-[10px] tracking-[0.32em] text-neutral-400">
@@ -79,9 +107,10 @@ const Telemetry = ({ progress }) => {
           <span className="block w-2 h-2 rounded-full bg-aqua shadow-[0_0_10px_#33c2cc]" />
         </div>
         <div className="relative h-44 overflow-hidden border-y border-aqua/15">
-          <motion.ul
-            style={{ y: tape }}
+          <ul
+            ref={tapeRef}
             className="font-mono-tight text-[11px] text-neutral-300/90"
+            style={{ willChange: "transform" }}
           >
             {logLines.map((l) => (
               <li
@@ -92,10 +121,10 @@ const Telemetry = ({ progress }) => {
                 {l}
               </li>
             ))}
-          </motion.ul>
+          </ul>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/90 via-transparent to-primary/90" />
         </div>
-      </motion.aside>
+      </aside>
     </>
   );
 };

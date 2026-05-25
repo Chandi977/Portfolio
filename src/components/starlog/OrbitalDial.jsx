@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
-import { memo, useMemo } from "react";
-import { motion, useReducedMotion, useTransform } from "motion/react";
+import { memo, useMemo, useRef, useEffect } from "react";
+import { motion, useReducedMotion } from "motion/react";
+import { interpolate } from "../../hooks/useGSAPBeat";
 
 const labels = [
   { text: "REACT · 19", angle: 0,   tone: "#9b80f5" },
@@ -162,70 +163,82 @@ const RadarTarget = memo(function RadarTarget({ id, bearing, x, y, labelX, label
   );
 });
 
-/* A single capsule label that always stays upright relative to the viewport.
-   Outer rotation is the dial's `rot`; we counter-rotate by `(rot + angle)`
-   so the text reads horizontally no matter where it sits on the ring. */
-const LabelCapsule = memo(function LabelCapsule({ rot, text, angle, tone }) {
-  const upright = useTransform(rot, (v) => -(v + angle));
+/* LabelCapsule — stays upright by counter-rotating based on scroll-driven rotation.
+   Now receives the current rotation from the parent via direct DOM updates. */
+const LabelCapsule = memo(function LabelCapsule({ text, angle, tone }) {
+  const gRef = useRef(null);
+  // The parent sets the rotation directly via data attribute or a callback.
+  // We use a MutationObserver-free approach: parent sets rotation in RAF.
   return (
     <g transform={`rotate(${angle}) translate(0,-${RADIUS})`}>
-      <motion.g style={{ rotate: upright }}>
+      <g ref={gRef} data-label-angle={angle}>
         {/* Outer halo for glow */}
-        <rect
-          x="-52"
-          y="-13"
-          width="104"
-          height="26"
-          rx="13"
-          fill="rgba(6,9,31,0.55)"
-        />
+        <rect x="-52" y="-13" width="104" height="26" rx="13" fill="rgba(6,9,31,0.55)" />
         {/* Capsule */}
-        <rect
-          x="-50"
-          y="-12"
-          width="100"
-          height="24"
-          rx="12"
-          fill="rgba(6,9,31,0.92)"
-          stroke={tone}
-          strokeOpacity="0.55"
-          strokeWidth="1"
-        />
+        <rect x="-50" y="-12" width="100" height="24" rx="12" fill="rgba(6,9,31,0.92)" stroke={tone} strokeOpacity="0.55" strokeWidth="1" />
         {/* Left/right bracket dots */}
         <circle cx="-44" cy="0" r="1.5" fill={tone} opacity="0.85" />
         <circle cx="44" cy="0" r="1.5" fill={tone} opacity="0.85" />
-        <text
-          x="0"
-          y="4"
-          textAnchor="middle"
-          fontSize="9.5"
-          letterSpacing="2.2"
-          fill={tone}
-          fontFamily="Space Mono, monospace"
-        >
+        <text x="0" y="4" textAnchor="middle" fontSize="9.5" letterSpacing="2.2" fill={tone} fontFamily="Space Mono, monospace">
           {text}
         </text>
-      </motion.g>
+      </g>
     </g>
   );
 });
 
 const OrbitalDial = ({ progress }) => {
   const reduceMotion = useReducedMotion();
-  // progress: MotionValue 0 → 1 mapped from the Orbital beat's local range
-  const rot = useTransform(progress, [0, 1], [-90, 270]);
-  const counterRot = useTransform(rot, (v) => -v);
-  const scale = useTransform(progress, [0, 0.5, 1], [0.88, 1, 1.1]);
-  const fade = useTransform(progress, [0, 0.1, 0.85, 1], [0, 1, 1, 0]);
+  const svgRef = useRef(null);
+  const outerRingRef = useRef(null);
+  const middleRingRef = useRef(null);
+  const labelsGroupRef = useRef(null);
+  const sweepRef = useRef(null);
 
-  // Entry/exit remain scroll-bound; once visible, the scanner keeps operating.
-  const sweepOpacity = useTransform(progress, [0, 0.2, 0.8, 1], [0, 0.6, 0.6, 0]);
+  useEffect(() => {
+    if (!progress) return;
+    return progress.onChange((p) => {
+      const svg = svgRef.current;
+      const outerRing = outerRingRef.current;
+      const middleRing = middleRingRef.current;
+      const labelsGroup = labelsGroupRef.current;
+      const sweep = sweepRef.current;
+      if (!svg || !outerRing || !middleRing || !labelsGroup) return;
+
+      // Overall fade + scale
+      const fade = interpolate(p, [0, 0.1, 0.85, 1], [0, 1, 1, 0]);
+      const scale = interpolate(p, [0, 0.5, 1], [0.88, 1, 1.1]);
+      svg.style.opacity = fade;
+      svg.style.transform = `translate(-50%, -50%) scale(${scale})`;
+
+      // Rotation driven by scroll
+      const rot = interpolate(p, [0, 1], [-90, 270]);
+      const counterRot = -rot;
+
+      outerRing.setAttribute("transform", `rotate(${rot})`);
+      middleRing.setAttribute("transform", `rotate(${counterRot})`);
+      labelsGroup.setAttribute("transform", `rotate(${rot})`);
+
+      // Keep labels upright — counter-rotate each by (rot + angle)
+      const labelGs = labelsGroup.querySelectorAll("[data-label-angle]");
+      labelGs.forEach((g) => {
+        const angle = Number(g.dataset.labelAngle);
+        g.setAttribute("transform", `rotate(${-(rot + angle)})`);
+      });
+
+      // Sweep opacity (time-based animation stays, just control visibility)
+      if (sweep) {
+        sweep.style.opacity = interpolate(p, [0, 0.2, 0.8, 1], [0, 0.6, 0.6, 0]);
+      }
+    });
+  }, [progress]);
 
   return (
-    <motion.svg
+    <svg
+      ref={svgRef}
       viewBox="-280 -280 560 560"
-      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(86vmin,640px)] h-[min(86vmin,640px)]"
-      style={{ opacity: fade, scale }}
+      className="absolute left-1/2 top-1/2 w-[min(86vmin,640px)] h-[min(86vmin,640px)]"
+      style={{ opacity: 0, transform: "translate(-50%, -50%)", willChange: "transform, opacity" }}
       role="img"
       aria-label="Active radar plot tracking three system contacts with one locked target"
     >
@@ -262,39 +275,28 @@ const OrbitalDial = ({ progress }) => {
         </linearGradient>
       </defs>
 
-      {/* Soft core glow centered behind the dial */}
+      {/* Soft core glow */}
       <circle r="240" fill="url(#dialCore)" />
 
       {/* Radar plot field */}
       <RadarGrid />
 
-      {/* Sweeping radar wedge */}
+      {/* Sweeping radar wedge — time-based CSS animation */}
       <motion.g
+        ref={sweepRef}
         data-testid="orbital-sweep"
         initial={{ rotate: 0 }}
         animate={{ rotate: reduceMotion ? 0 : 360 }}
         transition={reduceMotion ? { duration: 0 } : { duration: SCAN_DURATION, ease: "linear", repeat: Infinity }}
-        style={{ opacity: sweepOpacity, transformBox: "fill-box", transformOrigin: "center" }}
+        style={{ opacity: 0, transformBox: "fill-box", transformOrigin: "center" }}
         pointerEvents="none"
       >
-        {/* Symmetric bounds keep Motion's fill-box rotation centered on the emitter. */}
         <circle r={SCAN_RADIUS} fill="rgba(0,0,0,0)" stroke="none" />
-        <path
-          data-testid="orbital-sweep-sector"
-          d={SCAN_PATH}
-          fill="url(#sweepGrad)"
-        />
-        <line
-          x1="0"
-          y1="0"
-          x2="0"
-          y2={-SCAN_RADIUS}
-          stroke="url(#sweepBeam)"
-          strokeWidth="1.4"
-        />
+        <path data-testid="orbital-sweep-sector" d={SCAN_PATH} fill="url(#sweepGrad)" />
+        <line x1="0" y1="0" x2="0" y2={-SCAN_RADIUS} stroke="url(#sweepBeam)" strokeWidth="1.4" />
       </motion.g>
 
-      {/* Target tracks remain readable above the scanning energy */}
+      {/* Target tracks */}
       <g>
         {RADAR_TARGETS.map((target) => (
           <RadarTarget key={target.id} {...target} reduceMotion={reduceMotion} />
@@ -302,66 +304,47 @@ const OrbitalDial = ({ progress }) => {
       </g>
 
       {/* Outermost rotating ring with ticks */}
-      <motion.g style={{ rotate: rot }}>
+      <g ref={outerRingRef}>
         <circle r={RADIUS} fill="none" stroke="rgba(155,128,245,0.45)" strokeWidth="1" />
         <circle r={RADIUS + 8} fill="none" stroke="rgba(155,128,245,0.12)" strokeWidth="1" strokeDasharray="1 3" />
         <Ticks radius={RADIUS - 2} count={120} color="rgba(155,128,245,0.55)" length={5} />
-      </motion.g>
+      </g>
 
-      {/* Static (viewport-aligned) capsule labels — orbit but stay upright */}
-      <motion.g style={{ rotate: rot }}>
+      {/* Static (viewport-aligned) capsule labels */}
+      <g ref={labelsGroupRef}>
         {labels.map((l) => (
-          <LabelCapsule key={l.text} rot={rot} {...l} />
+          <LabelCapsule key={l.text} {...l} />
         ))}
-      </motion.g>
+      </g>
 
       {/* Middle ring — slower counter-rotation */}
-      <motion.g style={{ rotate: counterRot }}>
+      <g ref={middleRingRef}>
         <circle r="178" fill="none" stroke="rgba(51,194,204,0.28)" strokeDasharray="2 6" />
         <Ticks radius={178} count={60} color="rgba(51,194,204,0.4)" length={3} />
-      </motion.g>
+      </g>
 
       {/* Fixed radar HUD and center emitter */}
       <g>
-        {/* Cardinal ticks */}
         <line x1="-205" y1="0" x2="-198" y2="0" stroke="rgba(155,128,245,0.7)" strokeWidth="1.2" />
         <line x1="198" y1="0" x2="205" y2="0" stroke="rgba(155,128,245,0.7)" strokeWidth="1.2" />
         <line x1="0" y1="-205" x2="0" y2="-198" stroke="rgba(155,128,245,0.7)" strokeWidth="1.2" />
         <line x1="0" y1="198" x2="0" y2="205" stroke="rgba(155,128,245,0.7)" strokeWidth="1.2" />
 
-        {/* Center emitter */}
         <circle r="22" fill="none" stroke="rgba(122,87,219,0.25)" />
         <circle r="14" fill="none" stroke="rgba(122,87,219,0.55)" />
         <circle r="6" fill="#7a57db" />
         <circle r="3" fill="#ffffff" opacity="0.9" />
 
-        {/* Instrument readout rail */}
         <path d="M -105 196 H -72 M 72 196 H 105" stroke="rgba(51,194,204,0.42)" />
         <rect x="-68" y="184" width="136" height="27" rx="2" fill="rgba(3,4,18,0.84)" stroke="rgba(51,194,204,0.18)" />
-        <text
-          x="0"
-          y="195"
-          textAnchor="middle"
-          fontSize="7.5"
-          letterSpacing="2.8"
-          fill="rgba(51,194,204,0.82)"
-          fontFamily="Space Mono, monospace"
-        >
+        <text x="0" y="195" textAnchor="middle" fontSize="7.5" letterSpacing="2.8" fill="rgba(51,194,204,0.82)" fontFamily="Space Mono, monospace">
           RADAR / ACTIVE
         </text>
-        <text
-          x="0"
-          y="205"
-          textAnchor="middle"
-          fontSize="5.8"
-          letterSpacing="1.6"
-          fill="rgba(155,128,245,0.72)"
-          fontFamily="Space Mono, monospace"
-        >
+        <text x="0" y="205" textAnchor="middle" fontSize="5.8" letterSpacing="1.6" fill="rgba(155,128,245,0.72)" fontFamily="Space Mono, monospace">
           03 CONTACTS / 01 LOCK
         </text>
       </g>
-    </motion.svg>
+    </svg>
   );
 };
 

@@ -1,84 +1,118 @@
-import { useEffect } from "react";
+import { createContext, useContext, useEffect, useRef } from "react";
 import Lenis from "lenis";
 import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-gsap.registerPlugin(ScrollTrigger);
+/* ============================================================
+   Lenis smooth-scroll wrapper
+   - Gives the page real inertia / momentum scrolling
+   - Updates window.scrollY natively → useScroll (motion/react)
+     and ScrollTrigger (GSAP) both see the real scroll position
+   - Syncs to GSAP's ticker so ScrollTrigger and Lenis share
+     the same RAF loop (no double-rAF overhead)
+   - Exposes the Lenis instance via context so any component
+     can call `lenis.scrollTo('#id')` for programmatic scrolling
+   ============================================================ */
 
 const NAV_OFFSET = 96;
 
-const scrollToId = (id, lenis) => {
-  const el = document.getElementById(id);
-  if (!el) return false;
-  if (lenis) {
-    lenis.scrollTo(el, { offset: -NAV_OFFSET, duration: 1.2 });
-  } else {
-    const top = el.getBoundingClientRect().top + window.scrollY - NAV_OFFSET;
-    window.scrollTo({ top, behavior: "smooth" });
-  }
-  return true;
-};
+// Context — any descendant can grab the Lenis instance
+const LenisContext = createContext(null);
+export const useLenis = () => useContext(LenisContext);
 
 const SmoothScroll = ({ children }) => {
+  const lenisRef = useRef(null);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let lenis = null;
-    let removeTicker = null;
+    // ── Create Lenis ──────────────────────────────────────
+    const lenis = new Lenis({
+      lerp: 0.07,           // lower = more inertia (0.06–0.1 sweet spot)
+      duration: 1.2,         // base duration for scrollTo animations
+      smoothWheel: true,     // smooth mouse-wheel scrolling
+      wheelMultiplier: 1,    // 1:1 wheel distance
+      touchMultiplier: 1.5,  // slight boost for trackpad swipes
+      infinite: false,
+      orientation: "vertical",
+      gestureOrientation: "vertical",
+    });
 
-    if (!reduced) {
-      lenis = new Lenis({
-        duration: 1.15,
-        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-        smoothWheel: true,
-        wheelMultiplier: 1,
-        touchMultiplier: 1.2,
-      });
-      lenis.on("scroll", ScrollTrigger.update);
-      const tick = (time) => lenis.raf(time * 1000);
-      gsap.ticker.add(tick);
-      gsap.ticker.lagSmoothing(0);
-      removeTicker = () => gsap.ticker.remove(tick);
-    }
+    lenisRef.current = lenis;
 
+    // ── Sync Lenis → GSAP ticker ──────────────────────────
+    // Single shared RAF loop: GSAP's ticker drives Lenis.
+    // This ensures ScrollTrigger and Lenis never fight.
+    gsap.ticker.lagSmoothing(0);
+    const tickerCallback = (time) => {
+      lenis.raf(time * 1000); // GSAP passes seconds, Lenis expects ms
+    };
+    gsap.ticker.add(tickerCallback);
+
+    // Disable Lenis's own internal RAF — GSAP's ticker is driving it
+    // (Lenis v1.x: calling raf() manually is the intended pattern
+    //  when autoRaf is not set or set to false.)
+
+    // ── Anchor-click handler ──────────────────────────────
     const onClick = (e) => {
-      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      const anchor = e.target.closest && e.target.closest('a[href^="#"]');
+      if (
+        e.defaultPrevented ||
+        e.button !== 0 ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey
+      )
+        return;
+
+      const anchor =
+        e.target.closest && e.target.closest('a[href^="#"]');
       if (!anchor) return;
+
       const href = anchor.getAttribute("href");
       if (!href || href === "#") return;
+
       const id = href.slice(1);
-      if (!document.getElementById(id)) return;
+      const target = document.getElementById(id);
+      if (!target) return;
+
       e.preventDefault();
-      if (scrollToId(id, lenis)) {
-        history.replaceState(null, "", href);
-      }
+      lenis.scrollTo(target, { offset: -NAV_OFFSET });
+      history.replaceState(null, "", href);
     };
     document.addEventListener("click", onClick);
 
-    // Handle initial load hash and back/forward navigation
-    const onHashChange = () => {
+    // ── Hash on load / popstate ───────────────────────────
+    const scrollToHash = () => {
       const id = window.location.hash.slice(1);
-      if (id) {
-        requestAnimationFrame(() => scrollToId(id, lenis));
-      }
+      if (!id) return;
+      const target = document.getElementById(id);
+      if (!target) return;
+      // Defer past initial layout so pinned sections measure correctly
+      requestAnimationFrame(() => {
+        lenis.scrollTo(target, { offset: -NAV_OFFSET, immediate: false });
+      });
     };
-    if (window.location.hash) {
-      // Defer past initial layout so sections measure correctly
-      setTimeout(onHashChange, 50);
-    }
-    window.addEventListener("hashchange", onHashChange);
 
+    if (window.location.hash) {
+      setTimeout(scrollToHash, 80);
+    }
+    window.addEventListener("hashchange", scrollToHash);
+
+    // ── Cleanup ───────────────────────────────────────────
     return () => {
       document.removeEventListener("click", onClick);
-      window.removeEventListener("hashchange", onHashChange);
-      if (removeTicker) removeTicker();
-      if (lenis) lenis.destroy();
+      window.removeEventListener("hashchange", scrollToHash);
+      gsap.ticker.remove(tickerCallback);
+      lenis.destroy();
+      lenisRef.current = null;
     };
   }, []);
 
-  return children;
+  return (
+    <LenisContext.Provider value={lenisRef}>
+      {children}
+    </LenisContext.Provider>
+  );
 };
 
 export default SmoothScroll;
