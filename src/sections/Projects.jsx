@@ -1,143 +1,253 @@
-import { useState, memo, useCallback, useMemo } from "react";
-import { motion, useMotionValue, useSpring } from "motion/react";
+import { memo, useState, useEffect } from "react";
+import { motion, useTransform } from "motion/react";
 import { myProjects } from "../constants";
+import {
+  PinnedStage,
+  Beat,
+  WordReveal,
+  MonoLabel,
+  MonoPill,
+  StatusDot,
+  Hairline,
+} from "../components/starlog/ds";
 
-const ProjectCard = memo(function ProjectCard({ project, index, setPreview }) {
-  const [isHovered, setIsHovered] = useState(false);
+/* ============================================================
+   TRANSMISSION 05 // DEPLOYMENTS
+   Tall pinned chapter. Intro beat + one beat per project.
+   With N=7 projects: 100vh intro + 100vh per project = 800vh.
+     - INTRO    0.00 → 0.125
+     - DEPLOY i 0.125 + i/N * 0.875 → 0.125 + (i+1)/N * 0.875
+   ============================================================ */
 
-  // Memoize event handlers
-  const handleMouseEnter = useCallback(() => {
-    setIsHovered(true);
-    setPreview(project.image);
-  }, [project.image, setPreview]);
+const N = myProjects.length;
+const INTRO_END = 0.125;
+const DEPLOY_RANGE = 1 - INTRO_END;
+const PER_PROJECT = DEPLOY_RANGE / N;
 
-  const handleMouseLeave = useCallback(() => {
-    setIsHovered(false);
-    setPreview(null);
-  }, [setPreview]);
+const Projects = () => (
+  <PinnedStage
+    id="work"
+    index="05"
+    callsign="DEPLOYMENTS"
+    tone="coral"
+    height={100 + N * 100}
+    beatLabels={["INTRO", `${N} CASES`]}
+  >
+    {(p) => <ProjectsBeats p={p} />}
+  </PinnedStage>
+);
 
-  // Memoize project number
-  const projectNumber = useMemo(
-    () => String(index + 1).padStart(2, "0"),
-    [index],
+const ProjectsBeats = ({ p }) => {
+  const introP = useTransform(p, [0, INTRO_END], [0, 1], { clamp: true });
+
+  // Continuous case-index (e.g. 0..N during the deploy range)
+  const caseIndex = useTransform(p, [INTRO_END, 1], [0, N], { clamp: true });
+
+  return (
+    <>
+      {/* ════════ INTRO BEAT ════════ */}
+      <Beat progress={p} range={[0, 0, INTRO_END - 0.02, INTRO_END + 0.02]}>
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12 text-center">
+          <div className="flex items-center gap-3 mb-8">
+            <StatusDot tone="coral" />
+            <MonoLabel tone="coral">::ARCHIVE · 05.00 · {N} FILES</MonoLabel>
+          </div>
+          <h2 className="font-display-tight text-3xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.05] tracking-[-0.04em] text-white max-w-5xl">
+            <WordReveal
+              progress={introP}
+              text="Case files from the workshop. What I built, what shipped, what broke."
+              revealWindow={0.85}
+            />
+          </h2>
+          <motion.p
+            style={{ opacity: useTransform(introP, [0.7, 1], [0, 1]) }}
+            className="mt-10 font-mono-tight text-xs tracking-[0.4em] text-aqua/80 uppercase"
+          >
+            ↓ KEEP SCROLLING TO ADVANCE THE FEED
+          </motion.p>
+        </div>
+      </Beat>
+
+      {/* Persistent case-index ticker (visible during deploys) */}
+      <CaseTicker p={p} caseIndex={caseIndex} />
+
+      {/* ════════ ONE BEAT PER PROJECT ════════ */}
+      {myProjects.map((project, i) => {
+        const start = INTRO_END + i * PER_PROJECT;
+        const end = start + PER_PROJECT;
+        return (
+          <ProjectBeat
+            key={project.id}
+            project={project}
+            index={i}
+            p={p}
+            start={start}
+            end={end}
+          />
+        );
+      })}
+
+      {/* Outro hairline (shows during last project) */}
+      <Beat progress={p} range={[0.94, 0.97, 1.0, 1.0]}>
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[min(640px,80vw)] z-30">
+          <Hairline />
+          <div className="mt-3 flex justify-between font-mono-tight text-[10px] tracking-[0.4em] text-neutral-500">
+            <span>END · TRANSMISSION 05</span>
+            <span>↓ 06 · ARCHIVE</span>
+          </div>
+        </div>
+      </Beat>
+    </>
   );
+};
+
+const CaseTicker = memo(function CaseTicker({ p, caseIndex }) {
+  const opacity = useTransform(p, [INTRO_END, INTRO_END + 0.03, 0.94, 0.98], [0, 1, 1, 0]);
+  return (
+    <motion.div
+      style={{ opacity }}
+      className="absolute top-24 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4"
+    >
+      <MonoLabel tone="coral">CASE · FILE</MonoLabel>
+      <span className="block w-px h-4 bg-white/20" />
+      <CaseNumber mv={caseIndex} />
+      <span className="font-mono-tight text-sm text-neutral-500">/ {String(N).padStart(2, "0")}</span>
+    </motion.div>
+  );
+});
+
+const CaseNumber = memo(function CaseNumber({ mv }) {
+  const [v, setV] = useState(1);
+  useEffect(() => mv.on("change", (x) => setV(Math.min(N, Math.floor(x) + 1))), [mv]);
+  return (
+    <span className="font-display-tight text-2xl text-white tabular-nums tracking-[-0.02em]">
+      {String(v).padStart(2, "0")}
+    </span>
+  );
+});
+
+/* ---------- ProjectBeat ----------
+   Timing contract (all in localP, 0..1 across this project's beat):
+     0.00 → 0.18   fade-in window (beat opacity ramps up)
+     0.18 → 0.55   content reveals (image, copy, tech tags) — STAGGER PLAYS
+     0.55 → 0.82   HOLD — everything fully visible
+     0.82 → 1.00   fade-out window (beat opacity ramps down)
+*/
+const ProjectBeat = memo(function ProjectBeat({ project, index, p, start, end }) {
+  const localP = useTransform(p, [start, end], [0, 1], { clamp: true });
+
+  // Wider fade-in/out so the beat is fully visible during the reveal stagger
+  const beatOpacity = useTransform(
+    p,
+    [start, start + (end - start) * 0.18, end - (end - start) * 0.18, end],
+    [0, 1, 1, 0],
+  );
+
+  // Image: starts off-screen right, slides to center, exits left
+  const imgX = useTransform(localP, [0, 0.5, 1], ["30%", "0%", "-15%"]);
+  const imgScale = useTransform(localP, [0, 0.5, 1], [1.15, 1.0, 0.95]);
+  const imgOpacity = useTransform(localP, [0, 0.18, 0.82, 1], [0, 1, 1, 0]);
+
+  // Info: rises from below — completes BEFORE the hold window starts
+  const infoY = useTransform(localP, [0.05, 0.35], ["40%", "0%"]);
+  const infoOpacity = useTransform(localP, [0, 0.20, 0.82, 1], [0, 1, 1, 0]);
+
+  // Giant index number that ticks across
+  const indexY = useTransform(localP, [0, 1], ["-10%", "10%"]);
+  const indexOpacity = useTransform(localP, [0, 0.18, 0.82, 1], [0, 1, 1, 0]);
+
+  const bgX = useTransform(localP, [0, 1], ["-3%", "3%"]);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-100px" }}
-      transition={{ duration: 0.5, delay: index * 0.1 }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      className="relative group cursor-pointer px-4 sm:px-6"
-      style={{ willChange: "transform, opacity" }}
+      style={{ opacity: beatOpacity, x: bgX }}
+      className="absolute inset-0 flex items-center"
     >
-      {/* Divider */}
-      <div className="bg-gradient-to-r from-transparent via-neutral-700 to-transparent h-[1px] w-full mb-8" />
+      {/* GIANT INDEX (left half, background) */}
+      <motion.div
+        style={{ y: indexY, opacity: indexOpacity }}
+        aria-hidden
+        className="absolute left-[-8vw] top-1/2 -translate-y-1/2 font-display-tight tracking-[-0.07em] text-white/[0.04] select-none pointer-events-none"
+      >
+        <span className="text-[44vh] leading-none italic">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 py-12">
-        {/* Left Side - Project Number & Title */}
-        <div className="lg:col-span-3 space-y-4">
-          <motion.span
-            className="text-6xl font-bold text-neutral-800 dark:text-neutral-200"
-            animate={{ scale: isHovered ? 1.1 : 1 }}
-            transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-            style={{ willChange: "transform" }}
-          >
-            {projectNumber}
-          </motion.span>
-          <h3 className="text-3xl font-bold text-white group-hover:text-blue-400 transition-colors duration-300">
+      <div className="relative max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 px-6 lg:px-16 py-24">
+        {/* IMAGE — right side, parallax in */}
+        <motion.div
+          style={{ x: imgX, scale: imgScale, opacity: imgOpacity }}
+          className="lg:col-span-7 lg:order-2 relative starlog-clip border border-lavender/30 bg-primary overflow-hidden h-[280px] md:h-[400px] lg:h-[500px] will-change-transform"
+        >
+          <img
+            src={project.image}
+            alt={project.title}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover"
+          />
+          {/* Scanlines + corner brackets */}
+          <div className="absolute inset-0 starlog-scanlines opacity-[0.08]" aria-hidden />
+          <div className="absolute inset-0 bg-gradient-to-tr from-primary/60 via-transparent to-transparent pointer-events-none" />
+
+          <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-10">
+            <MonoLabel tone="lavender">LIVE · PREVIEW</MonoLabel>
+            <span className="block w-2 h-2 rounded-full bg-coral animate-pulse" />
+          </div>
+
+          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between z-10">
+            <MonoLabel>{project.category || "WEB"}</MonoLabel>
+            <MonoLabel tone="aqua">{project.stats?.year || "—"}</MonoLabel>
+          </div>
+        </motion.div>
+
+        {/* INFO — left side, rises from below */}
+        <motion.div
+          style={{ y: infoY, opacity: infoOpacity }}
+          className="lg:col-span-5 lg:order-1 flex flex-col justify-center"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <span className="font-display-tight text-5xl text-coral tracking-[-0.04em]">
+              {String(index + 1).padStart(2, "0")}
+              <span className="text-white/40">.</span>
+            </span>
+            <div className="flex flex-col">
+              <MonoLabel tone="coral">CASE · 05.{String(index + 1).padStart(2, "0")}</MonoLabel>
+              <MonoLabel>{project.stats?.role || "DEV"}</MonoLabel>
+            </div>
+          </div>
+
+          <h3 className="font-display-tight text-2xl md:text-4xl lg:text-5xl text-white tracking-[-0.035em] leading-[1.05] mb-5">
             {project.title}
           </h3>
-          <p className="text-sm text-neutral-400 uppercase tracking-wider">
-            {project.category || "Web Development"}
-          </p>
-        </div>
 
-        {/* Middle - Description & Details */}
-        <div className="lg:col-span-6 space-y-6">
-          <p className="text-lg text-neutral-300 leading-relaxed">
-            {project.description || project.desc}
+          <p className="text-sm md:text-base text-neutral-300 leading-relaxed mb-6 line-clamp-4">
+            {project.description}
           </p>
 
-          {/* Additional Details */}
-          {project.fullDescription && (
-            <p className="text-base text-neutral-400 leading-relaxed">
-              {project.fullDescription}
-            </p>
-          )}
-
-          {/* Key Features */}
-          {project.features && (
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-neutral-300 uppercase tracking-wide">
-                Key Features
-              </h4>
-              <ul className="space-y-2">
-                {project.features.map((feature, idx) => (
-                  <li
-                    key={idx}
-                    className="flex items-start gap-3 text-neutral-400"
-                  >
-                    <span className="text-blue-400 mt-1">▹</span>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
+          {/* Tech pills (top 6) */}
+          {project.technologies && (
+            <div className="flex flex-wrap gap-1.5 mb-6">
+              {project.technologies.slice(0, 6).map((t) => (
+                <MonoPill key={t} tone="neutral">{t}</MonoPill>
+              ))}
+              {project.technologies.length > 6 && (
+                <MonoPill tone="lavender">+{project.technologies.length - 6}</MonoPill>
+              )}
             </div>
           )}
 
-          {/* Technologies */}
-          <div className="flex flex-wrap gap-2 pt-4">
-            {project.technologies?.map((tech, idx) => (
-              <span
-                key={idx}
-                className="px-3 py-1 text-xs font-medium bg-neutral-800/50 text-neutral-300 rounded-full border border-neutral-700 hover:border-blue-400 transition-colors duration-300"
-              >
-                {tech}
-              </span>
-            )) ||
-              // Fallback if technologies aren't in the data
-              project.subdesc?.split(",").map((tech, idx) => (
-                <span
-                  key={idx}
-                  className="px-3 py-1 text-xs font-medium bg-neutral-800/50 text-neutral-300 rounded-full border border-neutral-700 hover:border-blue-400 transition-colors duration-300"
-                >
-                  {tech.trim()}
-                </span>
-              ))}
-          </div>
-        </div>
-
-        {/* Right Side - Links & Stats */}
-        <div className="lg:col-span-3 space-y-6">
-          {/* Project Links */}
-          <div className="space-y-3">
+          {/* Links */}
+          <div className="flex gap-2 flex-wrap">
             {project.href && (
               <a
                 href={project.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-neutral-300 hover:text-blue-400 transition-colors duration-300 group/link"
+                className="inline-flex items-center gap-3 border border-lavender/40 hover:border-lavender hover:bg-lavender/5 px-4 py-2 font-mono-tight text-[11px] tracking-[0.25em] text-white uppercase transition-all"
               >
-                <span className="text-sm font-medium">View Project</span>
-                <motion.svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  animate={{ x: isHovered ? 5 : 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M14 5l7 7m0 0l-7 7m7-7H3"
-                  />
-                </motion.svg>
+                VIEW · LIVE <span className="text-lavender">↗</span>
               </a>
             )}
             {project.github && (
@@ -145,156 +255,16 @@ const ProjectCard = memo(function ProjectCard({ project, index, setPreview }) {
                 href={project.github}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-neutral-300 hover:text-blue-400 transition-colors duration-300"
+                className="inline-flex items-center gap-3 border border-white/15 hover:border-white/40 px-4 py-2 font-mono-tight text-[11px] tracking-[0.25em] text-white uppercase transition-all"
               >
-                <span className="text-sm font-medium">Source Code</span>
-                <svg
-                  className="h-4 w-4"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-                </svg>
+                SOURCE · GIT <span className="text-neutral-400">↗</span>
               </a>
             )}
           </div>
-
-          {/* Project Stats (optional) */}
-          {project.stats && (
-            <div className="space-y-3 pt-4 border-t border-neutral-800">
-              {project.stats.year && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-neutral-500">Year</span>
-                  <span className="text-neutral-300 font-medium">
-                    {project.stats.year}
-                  </span>
-                </div>
-              )}
-              {project.stats.duration && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-neutral-500">Duration</span>
-                  <span className="text-neutral-300 font-medium">
-                    {project.stats.duration}
-                  </span>
-                </div>
-              )}
-              {project.stats.role && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-neutral-500">Role</span>
-                  <span className="text-neutral-300 font-medium">
-                    {project.stats.role}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        </motion.div>
       </div>
-
-      {/* Hover Effect Background */}
-      <motion.div
-        className="absolute inset-y-0 -inset-x-6 sm:-inset-x-10 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-2xl -z-10"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: isHovered ? 1 : 0 }}
-        transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-        style={{ willChange: "opacity" }}
-      />
     </motion.div>
   );
 });
 
-const Projects = memo(function Projects() {
-  const [preview, setPreview] = useState(null);
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-
-  // Smooth spring animation with better responsiveness
-  const springConfig = useMemo(
-    () => ({ damping: 25, stiffness: 200, mass: 0.5 }),
-    [],
-  );
-  const x = useSpring(mouseX, springConfig);
-  const y = useSpring(mouseY, springConfig);
-
-  // Throttled mouse move handler using RAF
-  const handleMouseMove = useCallback(
-    (e) => {
-      // Get viewport dimensions
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-
-      // Image dimensions
-      const imgWidth = 384; // w-96 = 384px
-      const imgHeight = 256; // h-64 = 256px
-
-      // Calculate position with offset and boundaries
-      let newX = e.clientX + 20;
-      let newY = e.clientY + 20;
-
-      // Keep image within viewport bounds
-      if (newX + imgWidth > viewportWidth) {
-        newX = e.clientX - imgWidth - 20;
-      }
-      if (newY + imgHeight > viewportHeight) {
-        newY = e.clientY - imgHeight - 20;
-      }
-
-      // Ensure minimum distance from edges
-      newX = Math.max(20, Math.min(newX, viewportWidth - imgWidth - 20));
-      newY = Math.max(20, Math.min(newY, viewportHeight - imgHeight - 20));
-
-      mouseX.set(newX);
-      mouseY.set(newY);
-    },
-    [mouseX, mouseY],
-  );
-
-  return (
-    <section
-      id="work"
-      onMouseMove={handleMouseMove}
-      className="relative overflow-hidden c-space section-spacing"
-    >
-      {/* Header */}
-      <div className="max-w-7xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="space-y-4 mb-16"
-        >
-          <h2 className="text-heading text-5xl md:text-6xl font-bold">
-            Selected <span className="text-gradient">Projects</span>
-          </h2>
-          <p className="text-xl text-neutral-400 max-w-2xl">
-            A collection of my recent work showcasing expertise in web
-            development, design, and innovative solutions.
-          </p>
-        </motion.div>
-
-        {/* Projects List */}
-        <div className="space-y-4">
-          {myProjects.map((project, index) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              index={index}
-              setPreview={setPreview}
-            />
-          ))}
-        </div>
-
-        {/* Bottom Divider */}
-        <div className="bg-gradient-to-r from-transparent via-neutral-700 to-transparent h-[1px] w-full mt-12" />
-      </div>
-
-      {/* Background decoration */}
-      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 -right-48 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 -left-48 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-      </div>
-    </section>
-  );
-});
-
-export default Projects;
+export default memo(Projects);

@@ -4,6 +4,7 @@ import Navbar from "./sections/Navbar";
 import Hero from "./sections/Hero";
 
 // Lazy load below-the-fold sections for better initial load performance
+const Starlog = lazy(() => import("./sections/Starlog"));
 const About = lazy(() => import("./sections/About"));
 const Projects = lazy(() => import("./sections/Projects"));
 const Freelance = lazy(() => import("./sections/Freelance"));
@@ -22,9 +23,12 @@ SectionLoader.displayName = "SectionLoader";
 
 const App = () => {
   return (
-    <div className="container mx-auto max-w-7xl">
+    <div className="relative container mx-auto max-w-7xl">
       <Navbar />
       <Hero />
+      <Suspense fallback={<SectionLoader />}>
+        <Starlog />
+      </Suspense>
       <Suspense fallback={<SectionLoader />}>
         <About />
       </Suspense>

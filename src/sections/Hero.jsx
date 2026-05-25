@@ -52,13 +52,15 @@ const Hero = () => {
   return (
     <section
       id="home"
-      className="flex items-start justify-center min-h-screen overflow-hidden md:items-start md:justify-start c-space"
+      className="relative left-1/2 flex h-[100dvh] min-h-[100dvh] w-screen -translate-x-1/2 items-start overflow-hidden"
     >
-      <HeroText />
+      <div className="relative z-10 mx-auto w-full max-w-7xl c-space">
+        <HeroText />
+      </div>
       <ParallaxBackground />
       <figure
-        className="absolute inset-0"
-        style={{ width: "100vw", height: "100vh", willChange: "transform" }}
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        style={{ willChange: "transform" }}
       >
         <Canvas {...canvasProps}>
           <Suspense fallback={<Loader />}>

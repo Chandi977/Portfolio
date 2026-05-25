@@ -9,39 +9,45 @@ import { twMerge } from "tailwind-merge";
 
 const MOVEMENT_DAMPING = 1400;
 
-// Optimized globe config for better performance
+// Default config tuned for the ORIGIN beat. Colors are intentionally tinted
+// toward the starlog palette (lavender base, aqua glow) instead of pure white.
 const GLOBE_CONFIG = {
   width: 800,
   height: 800,
   onRender: () => {},
-  devicePixelRatio: Math.min(window.devicePixelRatio, 2), // Cap DPR for performance
+  devicePixelRatio: Math.min(typeof window !== "undefined" ? window.devicePixelRatio : 1, 2),
   phi: 0,
-  theta: 0.3,
+  theta: 0.28,
   dark: 1,
-  diffuse: 0.4,
-  mapSamples: 8000, // Reduced from 16000 for better performance
-  mapBrightness: 1.2,
-  baseColor: [1, 1, 1],
-  markerColor: [1, 1, 1],
-  glowColor: [1, 1, 1],
+  diffuse: 1.05,
+  mapSamples: 12000,
+  mapBrightness: 5.4,
+  baseColor: [0.32, 0.27, 0.55],   // lavender land
+  markerColor: [0.92, 0.32, 0.55], // coral pins
+  glowColor: [0.20, 0.76, 0.80],   // aqua atmosphere
   markers: [
-    { location: [14.5995, 120.9842], size: 0.03 },
-    { location: [19.076, 72.8777], size: 0.1 },
-    { location: [23.8103, 90.4125], size: 0.05 },
-    { location: [30.0444, 31.2357], size: 0.07 },
-    { location: [39.9042, 116.4074], size: 0.08 },
-    { location: [-23.5505, -46.6333], size: 0.1 },
-    { location: [19.4326, -99.1332], size: 0.1 },
-    { location: [40.7128, -74.006], size: 0.1 },
-    { location: [34.6937, 135.5022], size: 0.05 },
-    { location: [41.0082, 28.9784], size: 0.06 },
+    { location: [28.5355, 77.391], size: 0.12 }, // Noida - origin (largest)
+    { location: [19.076, 72.8777], size: 0.05 },  // Mumbai
+    { location: [28.6139, 77.209], size: 0.05 },  // Delhi
+    { location: [40.7128, -74.006], size: 0.045 },// NYC
+    { location: [51.5074, -0.1278], size: 0.045 },// London
+    { location: [35.6762, 139.6503], size: 0.045},// Tokyo
+    { location: [-33.8688, 151.2093], size: 0.04},// Sydney
+    { location: [37.7749, -122.4194], size: 0.04},// SF
+    { location: [1.3521, 103.8198], size: 0.035 },// Singapore
+    { location: [25.2048, 55.2708], size: 0.035 },// Dubai
   ],
 };
 
-export const Globe = memo(function Globe({ className, config = GLOBE_CONFIG }) {
+export const Globe = memo(function Globe({
+  className,
+  config = GLOBE_CONFIG,
+  autoRotateSpeed = 0.0035,
+}) {
   let phi = 0;
   let width = 0;
   const canvasRef = useRef(null);
+  const containerRef = useRef(null);
   const pointerInteracting = useRef(null);
   const pointerInteractionMovement = useRef(0);
   const globeRef = useRef(null);
@@ -73,35 +79,49 @@ export const Globe = memo(function Globe({ className, config = GLOBE_CONFIG }) {
 
   useEffect(() => {
     let resizeTimeout;
+    let resizeObs;
 
-    const onResize = () => {
-      if (canvasRef.current) {
-        width = canvasRef.current.offsetWidth;
+    const measure = () => {
+      // Use the wrapping container to size the globe — guarantees the canvas
+      // fills its parent regardless of CSS sizing classes elsewhere.
+      const host = containerRef.current;
+      if (!host) return;
+      const next = host.offsetWidth;
+      if (next && next !== width) {
+        width = next;
+        // Resync immediately so the globe doesn't appear cropped on resize.
+        if (globeRef.current && canvasRef.current) {
+          canvasRef.current.width = width * 2;
+          canvasRef.current.height = width * 2;
+        }
       }
     };
 
-    // Debounced resize handler
     const debouncedResize = () => {
       clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(onResize, 100);
+      resizeTimeout = setTimeout(measure, 80);
     };
 
     window.addEventListener("resize", debouncedResize, { passive: true });
-    onResize();
+    measure();
+
+    if (typeof ResizeObserver !== "undefined" && containerRef.current) {
+      resizeObs = new ResizeObserver(debouncedResize);
+      resizeObs.observe(containerRef.current);
+    }
 
     globeRef.current = createGlobe(canvasRef.current, {
       ...config,
       width: width * 2,
       height: width * 2,
       onRender: (state) => {
-        if (!pointerInteracting.current) phi += 0.005;
+        if (!pointerInteracting.current) phi += autoRotateSpeed;
         state.phi = phi + rs.get();
         state.width = width * 2;
         state.height = width * 2;
       },
     });
 
-    // Use requestAnimationFrame for smoother opacity transition
     requestAnimationFrame(() => {
       if (canvasRef.current) {
         canvasRef.current.style.opacity = "1";
@@ -110,24 +130,24 @@ export const Globe = memo(function Globe({ className, config = GLOBE_CONFIG }) {
 
     return () => {
       clearTimeout(resizeTimeout);
+      if (resizeObs) resizeObs.disconnect();
       if (globeRef.current) {
         globeRef.current.destroy();
       }
       window.removeEventListener("resize", debouncedResize);
     };
-  }, [rs, config]);
+  }, [rs, config, autoRotateSpeed]);
 
   return (
     <div
+      ref={containerRef}
       className={twMerge(
-        "mx-auto aspect-[1/1] w-full max-w-[600px]",
+        "relative mx-auto aspect-square w-full",
         className,
       )}
     >
       <canvas
-        className={twMerge(
-          "size-[20rem] opacity-0 transition-opacity duration-500 [contain:layout_paint_size]",
-        )}
+        className="w-full h-full opacity-0 transition-opacity duration-700 [contain:layout_paint_size]"
         ref={canvasRef}
         style={{ willChange: "opacity" }}
         onPointerDown={(e) => {

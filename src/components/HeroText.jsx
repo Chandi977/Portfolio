@@ -9,9 +9,9 @@ const HeroText = () => {
   };
 
   return (
-    <div className="z-10 mt-20 text-center md:mt-40 md:text-left rounded-3xl bg-clip-text">
+    <div className="relative z-10 mt-28 text-center md:mt-40 md:text-left rounded-3xl bg-clip-text [text-shadow:0_2px_24px_rgba(3,4,18,0.85)]">
       {/* Desktop View */}
-      <div className="flex-col hidden md:flex c-space">
+      <div className="flex-col hidden md:flex">
         <motion.h1
           className="text-4xl font-medium"
           variants={variants}

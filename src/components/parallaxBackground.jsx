@@ -31,11 +31,11 @@ const ParallaxBackground = memo(function ParallaxBackground() {
   );
 
   return (
-    <section className="absolute inset-0 bg-black/40">
-      <div className="relative h-screen overflow-y-hidden">
+    <section className="pointer-events-none absolute inset-0 bg-black/40">
+      <div className="relative h-full overflow-hidden">
         {/* Background Sky - Static, no animation needed */}
         <div
-          className="absolute inset-0 w-full h-screen -z-50"
+          className="absolute inset-0 h-full w-full -z-50"
           style={{
             backgroundImage: "url(/assets/sky.jpg)",
             backgroundPosition: "bottom",
