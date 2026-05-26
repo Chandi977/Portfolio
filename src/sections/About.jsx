@@ -34,9 +34,9 @@ const SKILLS = [
 ];
 
 const TELEMETRY = [
-  { from: 0, to: 1428, label: "COMMITS / YEAR", tone: "lavender" },
+  { from: 0, to: 382, label: "GITHUB CONTRIBUTIONS / 2026", tone: "lavender" },
   { from: 0, to: 17, label: "SYSTEMS SHIPPED", tone: "aqua" },
-  { from: 0, to: 200, suffix: "+", label: "DSA SOLVED", tone: "mint" },
+  { from: 0, to: 600, suffix: "+", label: "DSA SOLVED", tone: "mint" },
   { from: 240, to: 38, suffix: "ms", label: "P99 LATENCY", tone: "coral" },
 ];
 
@@ -44,7 +44,7 @@ const About = () => (
   <PinnedStage
     id="about"
     index="03"
-    callsign="IDENTITY"
+    callsign="PROFILE"
     tone="lavender"
     height={420}
     beatLabels={["STATEMENT", "TELEMETRY", "CAPABILITIES", "ORIGIN", "HANDOFF"]}
@@ -54,20 +54,22 @@ const About = () => (
 );
 
 const AboutBeats = ({ p }) => {
-  const beat1P = useSubProgress(p, 0.00, 0.16);
-  const beat2P = useSubProgress(p, 0.22, 0.38);
-  const beat3P = useSubProgress(p, 0.44, 0.60);
-  const beat4P = useSubProgress(p, 0.66, 0.84);
-  const beat5P = useSubProgress(p, 0.90, 0.99);
+  // Sub-progress ranges end at ~70% of each beat's peak window so content
+  // finishes revealing with dwell time before the fade-out begins.
+  const beat1P = useSubProgress(p, 0.00, 0.13);
+  const beat2P = useSubProgress(p, 0.22, 0.35);
+  const beat3P = useSubProgress(p, 0.44, 0.57);
+  const beat4P = useSubProgress(p, 0.66, 0.80);
+  const beat5P = useSubProgress(p, 0.88, 0.97);
 
   return (
     <>
       {/* ════════════ BEAT 1 — STATEMENT ════════════ */}
-      <Beat progress={p} range={[0, 0, 0.18, 0.21]}>
+      <Beat progress={p} range={[0, 0, 0.18, 0.23]}>
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12 text-center">
           <div className="flex items-center gap-3 mb-8">
             <StatusDot tone="lavender" />
-            <MonoLabel tone="lavender">DOSSIER · 03.01 · OPEN</MonoLabel>
+            <MonoLabel tone="lavender">README · 03.01 · OPEN</MonoLabel>
           </div>
           <h2 className="font-display-tight text-3xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.05] tracking-[-0.04em] text-white max-w-5xl">
             <WordReveal
@@ -81,7 +83,7 @@ const AboutBeats = ({ p }) => {
       </Beat>
 
       {/* ════════════ BEAT 2 — TELEMETRY ════════════ */}
-      <Beat progress={p} range={[0.18, 0.22, 0.40, 0.43]}>
+      <Beat progress={p} range={[0.18, 0.22, 0.40, 0.45]}>
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12">
           <FadeIn progress={beat2P} start={0} end={0.15}>
             <div className="flex items-center gap-3 mb-10">
@@ -106,7 +108,7 @@ const AboutBeats = ({ p }) => {
       </Beat>
 
       {/* ════════════ BEAT 3 — CAPABILITIES ════════════ */}
-      <Beat progress={p} range={[0.40, 0.44, 0.62, 0.65]}>
+      <Beat progress={p} range={[0.40, 0.44, 0.62, 0.67]}>
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12">
           <FadeIn progress={beat3P} start={0} end={0.12}>
             <div className="flex items-center gap-3 mb-6">
@@ -125,7 +127,7 @@ const AboutBeats = ({ p }) => {
             <div className="mb-6 flex items-center gap-4 font-mono-tight text-[9px] tracking-[0.35em] text-neutral-500 uppercase">
               <span>◀ index</span>
               <span className="block w-12 h-px bg-white/10" />
-              <span>signal · band</span>
+              <span>module · version</span>
               <span className="block w-12 h-px bg-white/10" />
               <span>module ▶</span>
             </div>
@@ -140,7 +142,7 @@ const AboutBeats = ({ p }) => {
             </div>
           </div>
 
-          <FadeIn progress={beat3P} start={0.78} end={0.92}>
+          <FadeIn progress={beat3P} start={0.50} end={0.62}>
             <div className="mt-6 flex items-center gap-4 font-mono-tight text-[9px] tracking-[0.4em] text-neutral-500 uppercase">
               <span className="text-mint">● SYNC</span>
               <span>12 / 12 modules loaded</span>
@@ -151,7 +153,7 @@ const AboutBeats = ({ p }) => {
       </Beat>
 
       {/* ════════════ BEAT 4 — ORIGIN ════════════ */}
-      <Beat progress={p} range={[0.62, 0.66, 0.86, 0.89]}>
+      <Beat progress={p} range={[0.62, 0.66, 0.86, 0.91]}>
         <OriginBeat beat4P={beat4P} />
       </Beat>
 
@@ -238,8 +240,10 @@ const SkillCard = memo(function SkillCard({ pBeat, index, total, label, code, gr
   const railRef = useRef(null);
 
   const rank = RIPPLE_ORDER.indexOf(index);
-  const start = 0.10 + (rank / total) * 0.45;
-  const end = start + 0.14;
+  // Tighter cascade: last card lands at sub-progress ~0.45 (was ~0.65)
+  // so the full 12-card manifest has a longer dwell plateau before fade-out.
+  const start = 0.05 + (rank / total) * 0.35;
+  const end = start + 0.10;
 
   useEffect(() => {
     if (!pBeat) return;
@@ -446,13 +450,13 @@ const OriginBeat = memo(function OriginBeat({ beat4P }) {
       <div ref={leftRef} style={{ opacity: 0 }} className="lg:col-span-4 flex flex-col justify-center max-w-md mx-auto lg:mx-0">
         <div className="flex items-center gap-3 mb-5">
           <StatusDot tone="aqua" />
-          <MonoLabel tone="aqua">::SIGNAL · ORIGIN · LOCK</MonoLabel>
+          <MonoLabel tone="aqua">::ENV · ORIGIN · LOCK</MonoLabel>
         </div>
         <h3 className="font-display-tight text-4xl md:text-5xl lg:text-6xl text-white tracking-[-0.035em] leading-[1] mb-6">
-          Broadcasting from <span className="italic text-aqua">Noida.</span>
+          Deploying from <span className="italic text-aqua">Noida.</span>
         </h3>
         <p className="text-neutral-400 text-sm md:text-base leading-relaxed mb-6">
-          Working out of northern India and shipping for teams across nine
+          Coding out of northern India and shipping for teams across nine
           time zones. The globe spins live — drag it to look around.
         </p>
 
@@ -474,7 +478,7 @@ const OriginBeat = memo(function OriginBeat({ beat4P }) {
 
         <div ref={trackingRef} style={{ opacity: 0 }} className="mt-6 flex items-center gap-3 font-mono-tight text-[10px] tracking-[0.3em] text-neutral-500 uppercase">
           <span className="block w-1.5 h-1.5 rounded-full bg-coral animate-pulse" />
-          <span>10 ROUTES · TRACKING</span>
+          <span>10 SERVICES · ONLINE</span>
         </div>
       </div>
 
@@ -519,7 +523,7 @@ const OriginBeat = memo(function OriginBeat({ beat4P }) {
               key={cr.k}
               ref={(el) => (cornerRefs.current[i] = el)}
               style={{ opacity: 0 }}
-              className={`absolute ${cr.pos} hidden md:flex items-center gap-2 px-2 py-1 bg-primary/80 backdrop-blur-sm border ${cr.toneClass} font-mono-tight text-[9px] tracking-[0.25em]`}
+              className={`absolute ${cr.pos} hidden md:flex items-center gap-2 px-2 py-1 bg-primary/90 border ${cr.toneClass} font-mono-tight text-[9px] tracking-[0.25em]`}
             >
               <span className="text-neutral-500">{cr.k}</span>
               <span className="block w-px h-2.5 bg-white/15" />
@@ -551,7 +555,7 @@ const HandoffBeat = memo(function HandoffBeat({ beat5P }) {
 
   return (
     <div ref={scaleRef} className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12 text-center" style={{ willChange: "transform" }}>
-      <MonoLabel tone="lavender" className="mb-6">END · TRANSMISSION 03</MonoLabel>
+      <MonoLabel tone="lavender" className="mb-6">END · MODULE 03</MonoLabel>
       <h3 className="font-display-tight text-4xl md:text-6xl lg:text-7xl text-white tracking-[-0.04em] leading-[1] mb-8 max-w-4xl">
         Want to build <span className="italic text-aqua">something</span> together?
       </h3>

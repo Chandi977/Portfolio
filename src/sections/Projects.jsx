@@ -32,34 +32,35 @@ const Projects = () => (
     callsign="DEPLOYMENTS"
     tone="coral"
     height={100 + N * 100}
-    beatLabels={["INTRO", `${N} CASES`]}
+    beatLabels={["INTRO", `${N} BUILDS`]}
   >
     {(p) => <ProjectsBeats p={p} />}
   </PinnedStage>
 );
 
 const ProjectsBeats = ({ p }) => {
-  const introP = useSubProgress(p, 0, INTRO_END);
+  // Intro reveal completes before the beat begins fading out, leaving dwell time.
+  const introP = useSubProgress(p, 0, INTRO_END * 0.7);
 
   return (
     <>
       {/* ════════ INTRO BEAT ════════ */}
-      <Beat progress={p} range={[0, 0, INTRO_END - 0.02, INTRO_END + 0.02]}>
+      <Beat progress={p} range={[0, 0, INTRO_END - 0.01, INTRO_END + 0.03]}>
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12 text-center">
           <div className="flex items-center gap-3 mb-8">
             <StatusDot tone="coral" />
-            <MonoLabel tone="coral">::ARCHIVE · 05.00 · {N} FILES</MonoLabel>
+            <MonoLabel tone="coral">::REPOS · 05.00 · {N} BUILDS</MonoLabel>
           </div>
           <h2 className="font-display-tight text-3xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.05] tracking-[-0.04em] text-white max-w-5xl">
             <WordReveal
               progress={introP}
-              text="Case files from the workshop. What I built, what shipped, what broke."
+              text="Builds from the workshop. What I shipped, what scaled, what taught me the most."
               revealWindow={0.85}
             />
           </h2>
           <FadeIn progress={introP} start={0.7} end={1}>
             <p className="mt-10 font-mono-tight text-xs tracking-[0.4em] text-aqua/80 uppercase">
-              ↓ KEEP SCROLLING TO ADVANCE THE FEED
+              ↓ KEEP SCROLLING TO STEP THROUGH THE COMMITS
             </p>
           </FadeIn>
         </div>
@@ -89,8 +90,8 @@ const ProjectsBeats = ({ p }) => {
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[min(640px,80vw)] z-30">
           <Hairline />
           <div className="mt-3 flex justify-between font-mono-tight text-[10px] tracking-[0.4em] text-neutral-500">
-            <span>END · TRANSMISSION 05</span>
-            <span>↓ 06 · ARCHIVE</span>
+            <span>END · MODULE 05</span>
+            <span>↓ 06 · EXPERIENCE</span>
           </div>
         </div>
       </Beat>
@@ -138,7 +139,7 @@ const CaseTicker = memo(function CaseTicker({ p }) {
       style={{ opacity: 0 }}
       className="absolute top-24 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4"
     >
-      <MonoLabel tone="coral">CASE · FILE</MonoLabel>
+      <MonoLabel tone="coral">REPO · ID</MonoLabel>
       <span className="block w-px h-4 bg-white/20" />
       <span className="font-display-tight text-2xl text-white tabular-nums tracking-[-0.02em]">
         {String(v).padStart(2, "0")}

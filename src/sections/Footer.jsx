@@ -17,8 +17,8 @@ gsap.registerPlugin(ScrollTrigger);
    assembles as the user scrolls into the chapter.
    ============================================================ */
 
-const SIGNOFF = "THANKS  FOR  TUNING  IN.";
-const SUBLINE = "END · OF · FEED";
+const SIGNOFF = "THANKS  FOR  SCROLLING  THROUGH.";
+const SUBLINE = "END · OF · LOG";
 
 const Footer = () => {
   const ref = useRef(null);
@@ -126,7 +126,7 @@ const Footer = () => {
         {/* Top tag */}
         <div className="absolute top-7 left-1/2 -translate-x-1/2 flex items-center gap-3 font-mono-tight text-[10px] tracking-[0.5em] text-neutral-500 z-40">
           <span className="block w-6 h-px bg-lavender/60" />
-          END · OF · FEED
+          END · OF · LOG
           <span className="block w-6 h-px bg-aqua/60" />
         </div>
 
@@ -134,7 +134,7 @@ const Footer = () => {
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[min(280px,70vw)] z-40">
           <div className="flex justify-between font-mono-tight text-[9px] tracking-[0.35em] text-neutral-500 mb-2">
             <span>00</span>
-            <span>SIGN · OFF</span>
+            <span>EXIT · 0</span>
             <span>01</span>
           </div>
           <div className="h-px bg-white/10 relative overflow-hidden">
@@ -221,7 +221,7 @@ const Footer = () => {
           style={{ opacity: 0 }}
           className="absolute bottom-20 left-1/2 -translate-x-1/2 flex flex-col md:flex-row md:items-center gap-3 md:gap-6 font-mono-tight text-[9px] tracking-[0.3em] text-neutral-600 uppercase text-center"
         >
-          <span>© {new Date().getFullYear()} · CHARAN · 977</span>
+          <span>© {new Date().getFullYear()} · CHARAN · DEV</span>
           <span className="hidden md:inline text-neutral-700">/</span>
           <span>BUILT WITH REACT · GSAP · R3F · LENIS</span>
         </div>
@@ -252,15 +252,15 @@ const CallsignBadge = memo(
           <span className="absolute inset-1.5 bg-lavender/80" />
         </span>
         <div className="flex flex-col items-start leading-none">
-          <MonoLabel tone="lavender">CALLSIGN</MonoLabel>
+          <MonoLabel tone="lavender">DEVELOPER</MonoLabel>
           <span className="font-display-tight italic text-2xl text-white tracking-[-0.02em] mt-1">
-            CHARAN · 977
+            CHARAN · DEV
           </span>
         </div>
         <span className="block w-px h-8 bg-white/15" />
         <div className="flex items-center gap-2">
           <StatusDot tone="mint" />
-          <MonoLabel>SIGNED · OFF · {time}</MonoLabel>
+          <MonoLabel>BUILD · COMPLETE · {time}</MonoLabel>
         </div>
       </div>
     );

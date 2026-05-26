@@ -67,6 +67,11 @@
   perspective: 1000px;
 }
 
+/* The pinned panel already has overflow-hidden, which gives most of
+   the paint isolation we need. We avoid `contain: layout/paint` here
+   because it interferes with descendants that measure their own
+   width via offsetWidth (e.g. the cobe globe canvas). */
+
 /* Reduce motion for users who prefer it */
 @media (prefers-reduced-motion: reduce) {
 
@@ -224,9 +229,26 @@ body {
   background-clip: text;
 }
 
-/* Native smooth scrolling — single source of truth, no JS overhead */
+/* Lenis is the smooth-scroll engine. Native smooth-scroll fights it
+   and produces lag, so it stays disabled. */
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
+}
+
+/* Lenis recommended host styles — prevents the page-level scroll
+   container from doing its own smoothing or overscroll work. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
 }
 
 /* Custom scrollbar for webkit browsers */
@@ -277,22 +299,28 @@ html {
     rgba(51, 194, 204, 0.0) 100%);
 }
 
-/* SVG noise grain — light texture so panels do not look plastic */
+/* SVG noise grain — light texture so panels do not look plastic.
+   mix-blend-mode: overlay on a fullscreen overlay forces an extra
+   compositor layer that re-blends every scroll frame. We drop the
+   blend mode and use a small repeating tile + low opacity instead. */
 .starlog-grain {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  mix-blend-mode: overlay;
-  opacity: 0.18;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.85 0 0 0 0 0.78 0 0 0 0 1 0 0 0 0.45 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.85 0 0 0 0 0.78 0 0 0 0 1 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 120px 120px;
+  /* hint the browser this layer is static — promote once, then leave alone */
+  transform: translateZ(0);
 }
 
-/* Scan-line overlay for the instrument panel feeling */
+/* Scan-line overlay for the instrument panel feeling.
+   Promoted to its own layer once so it doesn't repaint on every scroll. */
 .starlog-scanlines {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.06;
+  opacity: 0.05;
   background-image: repeating-linear-gradient(
     0deg,
     rgba(255, 255, 255, 0.55) 0px,
@@ -300,6 +328,7 @@ html {
     transparent 1px,
     transparent 3px
   );
+  transform: translateZ(0);
 }
 
 /* Registration-mark cross used in the corners */

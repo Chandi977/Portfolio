@@ -65,7 +65,7 @@ const CoordinateLock = ({ progress }) => {
         LAT 28.5355° N · LON 77.3910° E
       </div>
       <div className="absolute right-12 top-12 font-mono-tight text-[10px] tracking-[0.28em] text-neutral-500">
-        SIG-LOCK · 1.000
+        BUILD · LOCK · 1.000
       </div>
 
       {/* Pre-title meta strip with growing rule */}
@@ -78,7 +78,7 @@ const CoordinateLock = ({ progress }) => {
           />
         </div>
         <span className="font-mono-tight text-[10px] tracking-[0.5em] text-aqua/80 uppercase">
-          Coordinate · Lock · 02.04
+          Commit · Lock · 02.04
         </span>
         <div className="relative h-px w-24 bg-white/10 overflow-hidden">
           <div
@@ -122,8 +122,8 @@ const CoordinateLock = ({ progress }) => {
           style={{ transform: "scaleX(0)", transformOrigin: "center" }}
         />
         <div className="flex justify-between mt-3 font-mono-tight text-[10px] tracking-[0.4em] text-neutral-500">
-          <span>END · TRANSMISSION 02</span>
-          <span>↓ CHAPTER 03 — IDENTITY</span>
+          <span>END · MODULE 02</span>
+          <span>↓ CHAPTER 03 — PROFILE</span>
         </div>
       </div>
     </div>

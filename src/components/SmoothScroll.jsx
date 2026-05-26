@@ -27,14 +27,17 @@ const SmoothScroll = ({ children }) => {
 
     // ── Create Lenis ──────────────────────────────────────
     const lenis = new Lenis({
-      lerp: 0.07,           // lower = more inertia (0.06–0.1 sweet spot)
-      duration: 1.2,         // base duration for scrollTo animations
-      smoothWheel: true,     // smooth mouse-wheel scrolling
-      wheelMultiplier: 1,    // 1:1 wheel distance
-      touchMultiplier: 1.5,  // slight boost for trackpad swipes
+      lerp: 0.12,            // snappier, premium feel (0.07 felt sluggish)
+      duration: 1.0,         // base duration for scrollTo animations
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // expo-out
+      smoothWheel: true,
+      wheelMultiplier: 1.15, // slight boost so the page tracks input 1:1
+      touchMultiplier: 2,    // mobile / trackpad responsiveness
+      syncTouch: true,       // unify touch with the same lerp loop
       infinite: false,
       orientation: "vertical",
       gestureOrientation: "vertical",
+      autoRaf: false,        // GSAP ticker drives raf (set explicitly)
     });
 
     lenisRef.current = lenis;

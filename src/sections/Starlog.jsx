@@ -29,7 +29,7 @@ const Starlog = () => {
     <PinnedStage
       id="starlog"
       index="02"
-      callsign="TRANSMISSION"
+      callsign="CHANGELOG"
       tone="lavender"
       height={420}
       beatLabels={["BOOT", "ORBITAL", "MORPH", "LOCK"]}
@@ -42,33 +42,35 @@ const Starlog = () => {
 
 const StarlogBeats = memo(function StarlogBeats({ p }) {
   // Per-beat local progress, remapped to [0,1] for clean component logic.
-  const bootP = useSubProgress(p, 0.00, 0.10);
-  const orbitalP = useSubProgress(p, 0.08, 0.46);
-  const morphP = useSubProgress(p, 0.42, 0.74);
-  const lockP = useSubProgress(p, 0.70, 1.00);
+  // Sub-progress ranges end well before each beat's fade-out so content has
+  // dwell time on screen before transitioning out.
+  const bootP = useSubProgress(p, 0.00, 0.08);
+  const orbitalP = useSubProgress(p, 0.10, 0.38);
+  const morphP = useSubProgress(p, 0.44, 0.66);
+  const lockP = useSubProgress(p, 0.72, 0.94);
 
   return (
     <>
       {/* ============ BEAT 1 — BOOT ============ */}
-      <Beat progress={p} range={[0, 0, 0.07, 0.10]}>
+      <Beat progress={p} range={[0, 0, 0.09, 0.13]}>
         <BootBeat progress={bootP} />
       </Beat>
 
       {/* ============ BEAT 2 — ORBITAL DIAL ============ */}
-      <Beat progress={p} range={[0.08, 0.12, 0.42, 0.46]}>
+      <Beat progress={p} range={[0.09, 0.13, 0.42, 0.46]}>
         <OrbitalDial progress={orbitalP} />
         <Telemetry progress={orbitalP} />
       </Beat>
 
       {/* ============ BEAT 3 — WORD MORPH ============ */}
-      <Beat progress={p} range={[0.42, 0.44, 0.72, 0.74]}>
+      <Beat progress={p} range={[0.42, 0.46, 0.72, 0.76]}>
         <WordMorph progress={morphP} />
         <MarqueeStrip progress={morphP} direction={1} />
         <MarqueeStrip progress={morphP} direction={-1} top />
       </Beat>
 
       {/* ============ BEAT 4 — COORDINATE LOCK ============ */}
-      <Beat progress={p} range={[0.70, 0.72, 0.98, 1.00]}>
+      <Beat progress={p} range={[0.72, 0.76, 0.98, 1.00]}>
         <CoordinateLock progress={lockP} />
       </Beat>
     </>
@@ -91,8 +93,8 @@ const BootBeat = memo(function BootBeat({ progress }) {
       const typeEl = typeRef.current;
       if (!group || !ring || !label || !typeEl) return;
 
-      // Boot group opacity
-      group.style.opacity = interpolate(p, [0, 0.7, 1], [1, 1, 0]);
+      // Boot group stays fully visible — outer Beat handles fade-out.
+      group.style.opacity = 1;
 
       // Ring scale + opacity
       const ringScale = interpolate(p, [0, 1], [0, 8]);
@@ -100,11 +102,11 @@ const BootBeat = memo(function BootBeat({ progress }) {
       ring.style.transform = `scale(${ringScale})`;
       ring.style.opacity = ringOpacity;
 
-      // Label opacity
-      label.style.opacity = interpolate(p, [0, 0.2, 0.9, 1], [0, 1, 1, 0]);
+      // Label opacity — fade in only, hold at peak
+      label.style.opacity = interpolate(p, [0, 0.2], [0, 1]);
 
-      // Type-writer width
-      typeEl.style.width = `${interpolate(p, [0.1, 0.9], [0, 100])}%`;
+      // Type-writer width — completes a touch earlier to give it dwell time
+      typeEl.style.width = `${interpolate(p, [0.1, 0.85], [0, 100])}%`;
     });
   }, [progress]);
 
@@ -130,7 +132,7 @@ const BootBeat = memo(function BootBeat({ progress }) {
           style={{ opacity: 0 }}
           className="font-mono-tight text-[10px] tracking-[0.45em] text-neutral-400 flex items-center gap-3"
         >
-          <span>::SIGNAL</span>
+          <span>::ENV</span>
           <span className="block w-12 h-px bg-neutral-700" />
           <span>28.54°N · 77.39°E</span>
         </div>
@@ -143,7 +145,7 @@ const BootBeat = memo(function BootBeat({ progress }) {
             ref={typeRef}
             style={{ display: "inline-block", width: "0%", overflow: "hidden" }}
           >
-            establishing&nbsp;link…&nbsp;handshake&nbsp;ok&nbsp;·&nbsp;routing&nbsp;through&nbsp;orbit
+            booting&nbsp;runtime…&nbsp;handshake&nbsp;ok&nbsp;·&nbsp;mounting&nbsp;modules
           </span>
           <span className="starlog-cursor text-aqua/90" />
         </div>

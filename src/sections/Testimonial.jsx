@@ -23,19 +23,21 @@ const Testimonial = () => (
   <PinnedStage
     id="testimonial"
     index="07"
-    callsign="INTERCEPTS"
+    callsign="REVIEWS"
     tone="coral"
     height={320}
-    beatLabels={["INCOMING", "FEED", "SIGNOFF"]}
+    beatLabels={["INTRO", "FEED", "OUTRO"]}
   >
     {(p) => <TestimonialBeats p={p} />}
   </PinnedStage>
 );
 
 const TestimonialBeats = ({ p }) => {
-  const introP = useSubProgress(p, 0, 0.15);
-  const feedP = useSubProgress(p, 0.15, 0.85);
-  const outroP = useSubProgress(p, 0.85, 1.0);
+  // Sub-progress ranges complete before each beat's fade-out so reveals
+  // finish with dwell time on screen.
+  const introP = useSubProgress(p, 0, 0.11);
+  const feedP = useSubProgress(p, 0.18, 0.82);
+  const outroP = useSubProgress(p, 0.87, 0.98);
 
   const firstHalf = reviews.slice(0, Math.ceil(reviews.length / 2));
   const secondHalf = reviews.slice(Math.ceil(reviews.length / 2));
@@ -43,31 +45,31 @@ const TestimonialBeats = ({ p }) => {
   return (
     <>
       {/* ════ BEAT 1 — INCOMING ════ */}
-      <Beat progress={p} range={[0, 0, 0.13, 0.17]}>
+      <Beat progress={p} range={[0, 0, 0.15, 0.20]}>
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12 text-center">
           <div className="flex items-center gap-3 mb-8">
             <StatusDot tone="coral" />
-            <MonoLabel tone="coral">::INCOMING · {reviews.length} CAPTURED</MonoLabel>
+            <MonoLabel tone="coral">::REVIEWS · {reviews.length} RECEIVED</MonoLabel>
             <span className="block w-6 h-px bg-white/20" />
-            <MonoLabel tone="aqua">BAND-S · 2.4GHz</MonoLabel>
+            <MonoLabel tone="aqua">STREAM · LIVE</MonoLabel>
           </div>
           <h2 className="font-display-tight italic text-3xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1] tracking-[-0.04em] text-white max-w-5xl">
             <WordReveal
               progress={introP}
-              text="Signals from people I've shipped with."
+              text="Notes from devs and teams I've built with."
               revealWindow={0.85}
             />
           </h2>
-          <FadeIn progress={introP} start={0.7} end={1}>
+          <FadeIn progress={introP} start={0.55} end={0.72}>
             <p className="mt-10 font-mono-tight text-xs tracking-[0.4em] text-coral/80 uppercase">
-              ↓ SCROLL TO RECEIVE FEED
+              ↓ SCROLL TO READ REVIEWS
             </p>
           </FadeIn>
         </div>
       </Beat>
 
       {/* ════ BEAT 2 — FEED (scroll-driven) ════ */}
-      <Beat progress={p} range={[0.13, 0.18, 0.82, 0.88]}>
+      <Beat progress={p} range={[0.15, 0.20, 0.84, 0.89]}>
         <div className="absolute inset-0 flex flex-col justify-center">
           {/* Header tag */}
           <FadeIn progress={feedP} start={0} end={0.1}>
@@ -80,9 +82,9 @@ const TestimonialBeats = ({ p }) => {
           {/* Band A */}
           <div className="relative mb-6 md:mb-10">
             <div className="flex items-center gap-4 mb-3 px-6">
-              <MonoLabel tone="coral">▼ BAND · A · 47.32MHz</MonoLabel>
+              <MonoLabel tone="coral">▼ STREAM · A · FEATURED</MonoLabel>
               <span className="flex-1 h-px bg-coral/20" />
-              <MonoLabel>{firstHalf.length} INTERCEPTS</MonoLabel>
+              <MonoLabel>{firstHalf.length} REVIEWS</MonoLabel>
             </div>
             <div className="relative overflow-hidden">
               <BandStrip items={firstHalf} feedP={feedP} direction={1} band="A" />
@@ -92,9 +94,9 @@ const TestimonialBeats = ({ p }) => {
           {/* Band B (counter-direction) */}
           <div className="relative">
             <div className="flex items-center gap-4 mb-3 px-6">
-              <MonoLabel tone="aqua">▲ BAND · B · 51.04MHz</MonoLabel>
+              <MonoLabel tone="aqua">▲ STREAM · B · ADDITIONAL</MonoLabel>
               <span className="flex-1 h-px bg-aqua/20" />
-              <MonoLabel>{secondHalf.length} INTERCEPTS</MonoLabel>
+              <MonoLabel>{secondHalf.length} REVIEWS</MonoLabel>
             </div>
             <div className="relative overflow-hidden">
               <BandStrip items={secondHalf} feedP={feedP} direction={-1} band="B" />
@@ -114,7 +116,7 @@ const TestimonialBeats = ({ p }) => {
       </Beat>
 
       {/* ════ BEAT 3 — SIGNOFF ════ */}
-      <Beat progress={p} range={[0.85, 0.90, 1.0, 1.0]}>
+      <Beat progress={p} range={[0.86, 0.91, 1.0, 1.0]}>
         <SignoffBeat outroP={outroP} />
       </Beat>
     </>
@@ -189,7 +191,7 @@ const InterceptCard = memo(function InterceptCard({ review, index, feedP, band }
     mint: { border: "border-mint/30", text: "text-mint", glow: "shadow-[0_0_30px_-10px_rgba(87,219,150,0.7)]" },
   }[tone];
 
-  const freq = (47 + index * 3.7).toFixed(2);
+  const buildId = `v${(1 + index * 0.1).toFixed(1)}.${String(index).padStart(2, "0")}`;
 
   return (
     <figure
@@ -211,7 +213,7 @@ const InterceptCard = memo(function InterceptCard({ review, index, feedP, band }
         <div className="flex items-center gap-2">
           <StatusDot tone={tone} />
           <span className={`font-mono-tight text-[10px] tracking-[0.22em] ${toneClasses.text}`}>
-            {freq}MHz
+            {buildId}
           </span>
         </div>
         <span className="font-mono-tight text-[9px] tracking-[0.3em] text-neutral-500">▌▌▌</span>
@@ -246,7 +248,7 @@ const InterceptCard = memo(function InterceptCard({ review, index, feedP, band }
 
       <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
         <span className="font-mono-tight text-[9px] tracking-[0.25em] text-neutral-500">
-          INTERCEPT · 07.{String(index + 1).padStart(2, "0")}{band}
+          REVIEW · 07.{String(index + 1).padStart(2, "0")}{band}
         </span>
         <span className={`font-mono-tight text-[9px] tracking-[0.25em] ${toneClasses.text}`}>OK</span>
       </div>
@@ -269,9 +271,9 @@ const SignoffBeat = memo(function SignoffBeat({ outroP }) {
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12 text-center">
-      <MonoLabel tone="coral" className="mb-6">END · TRANSMISSION 07</MonoLabel>
+      <MonoLabel tone="coral" className="mb-6">END · MODULE 07</MonoLabel>
       <h3 className="font-display-tight italic text-4xl md:text-6xl text-white tracking-[-0.04em] leading-[1.05] max-w-3xl mb-8">
-        {reviews.length} signals captured. Feed remains open.
+        {reviews.length} reviews logged. Feed stays open for more.
       </h3>
       <div
         ref={hairRef}
@@ -280,8 +282,8 @@ const SignoffBeat = memo(function SignoffBeat({ outroP }) {
       >
         <Hairline />
         <div className="mt-3 flex justify-between font-mono-tight text-[10px] tracking-[0.4em] text-neutral-500">
-          <span>07 · INTERCEPTS</span>
-          <span>↓ 08 · UPLINK</span>
+          <span>07 · REVIEWS</span>
+          <span>↓ 08 · CONTACT</span>
         </div>
       </div>
     </div>

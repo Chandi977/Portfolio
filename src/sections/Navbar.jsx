@@ -1,230 +1,208 @@
-
-import { useState, useEffect, memo, useCallback, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-
-gsap.registerPlugin(ScrollTrigger);
+import { memo, useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 const NAV_ITEMS = [
-  { id: "home", label: "HOME", code: "01" },
-  { id: "starlog", label: "STARLOG", code: "02" },
-  { id: "about", label: "IDENTITY", code: "03" },
-  { id: "freelance", label: "SERVICES", code: "04" },
-  { id: "work", label: "DEPLOYMENTS", code: "05" },
-  { id: "experience", label: "ARCHIVE", code: "06" },
-  { id: "testimonial", label: "INTERCEPTS", code: "07" },
-  { id: "contact", label: "UPLINK", code: "08" },
+  { id: "starlog", label: "Changelog" },
+  { id: "about", label: "Profile" },
+  { id: "freelance", label: "Services" },
+  { id: "work", label: "Deployments" },
+  { id: "experience", label: "Experience" },
+  { id: "testimonial", label: "Reviews" },
 ];
 
-const NavItem = memo(function NavItem({ item, onClick, active }) {
+const TRACKED_SECTION_IDS = [
+  "home",
+  ...NAV_ITEMS.map((item) => item.id),
+  "contact",
+];
+
+const renderNavLink = (item, active, onClick) => {
+  const isActive = active === item.id;
+
   return (
-    <li>
+    <li key={item.id}>
       <a
         href={`#${item.id}`}
         onClick={onClick}
-        className="group flex items-center gap-2 py-2 px-2 transition-colors"
+        aria-current={isActive ? "location" : undefined}
+        className={`relative flex min-h-11 items-center rounded-full px-3.5 text-sm font-medium tracking-[-0.01em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
+          isActive
+            ? "bg-white/[0.09] text-white"
+            : "text-neutral-300 hover:bg-white/[0.05] hover:text-white"
+        }`}
       >
-        <span
-          className={`font-mono-tight text-[10px] tracking-[0.2em] transition-colors ${
-            active ? "text-lavender" : "text-neutral-600 group-hover:text-aqua"
-          }`}
-        >
-          {item.code}
-        </span>
-        <span
-          className={`font-mono-tight text-[11px] tracking-[0.28em] uppercase transition-colors ${
-            active
-              ? "text-white"
-              : "text-neutral-400 group-hover:text-white"
-          }`}
-        >
-          {item.label}
-        </span>
+        {item.label}
+        {isActive && (
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-4 -bottom-px h-px bg-lavender"
+          />
+        )}
       </a>
     </li>
   );
-});
+};
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState("home");
-  const [time, setTime] = useState("");
-  const progressRef = useRef(null);
+  const reduceMotion = useReducedMotion();
 
-  // GSAP-driven scroll progress bar (replaces useScroll().scrollYProgress)
-  useEffect(() => {
-    const st = ScrollTrigger.create({
-      start: 0,
-      end: "max",
-      scrub: 0,
-      onUpdate: (self) => {
-        if (progressRef.current) {
-          progressRef.current.style.transform = `scaleX(${self.progress})`;
-        }
-      },
-    });
-    return () => st.kill();
-  }, []);
-
-  // UTC clock
-  useEffect(() => {
-    const fmt = () => {
-      const d = new Date();
-      const hh = String(d.getUTCHours()).padStart(2, "0");
-      const mm = String(d.getUTCMinutes()).padStart(2, "0");
-      const ss = String(d.getUTCSeconds()).padStart(2, "0");
-      setTime(`${hh}:${mm}:${ss} UTC`);
-    };
-    fmt();
-    const t = setInterval(fmt, 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  // Scrolled state + active section detection
   useEffect(() => {
     let ticking = false;
+
     const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          setScrolled(window.scrollY > 40);
-          const sections = NAV_ITEMS.map((i) => document.getElementById(i.id)).filter(Boolean);
-          const mid = window.innerHeight * 0.35;
-          for (const s of sections) {
-            const r = s.getBoundingClientRect();
-            if (r.top <= mid && r.bottom >= mid) {
-              setActive(s.id);
-              break;
-            }
+      if (ticking) return;
+
+      window.requestAnimationFrame(() => {
+        setScrolled(window.scrollY > 24);
+
+        const marker = window.innerHeight * 0.32;
+        for (const id of TRACKED_SECTION_IDS) {
+          const section = document.getElementById(id);
+          if (!section) continue;
+
+          const bounds = section.getBoundingClientRect();
+          if (bounds.top <= marker && bounds.bottom >= marker) {
+            setActive(id);
+            break;
           }
-          ticking = false;
-        });
-        ticking = true;
-      }
+        }
+
+        ticking = false;
+      });
+
+      ticking = true;
     };
+
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleToggle = useCallback(() => setIsOpen((p) => !p), []);
-  const handleClose = useCallback(() => setIsOpen(false), []);
+  useEffect(() => {
+    if (!isOpen) return undefined;
 
-  const headerClass = useMemo(
-    () =>
-      `fixed inset-x-0 top-0 z-40 transition-all duration-300 ${
-        scrolled
-          ? "bg-primary/75 backdrop-blur-xl border-b border-white/5"
-          : "bg-transparent"
-      }`,
-    [scrolled],
-  );
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen]);
+
+  const handleToggle = useCallback(() => setIsOpen((open) => !open), []);
+  const handleClose = useCallback(() => setIsOpen(false), []);
 
   return (
     <motion.header
-      initial={{ y: -60, opacity: 0 }}
+      initial={reduceMotion ? false : { y: -18, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className={headerClass}
+      transition={
+        reduceMotion
+          ? { duration: 0 }
+          : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }
+      }
+      className="fixed inset-x-0 top-4 z-40 px-4 sm:px-6"
     >
-      {/* Top meta strip */}
-      <div className="hidden md:flex items-center justify-between gap-4 px-6 lg:px-12 py-1.5 border-b border-white/5">
-        <div className="flex items-center gap-3 font-mono-tight text-[10px] tracking-[0.3em] text-neutral-500">
-          <span className="block w-2 h-2 rounded-full bg-mint shadow-[0_0_8px_#57db96]" />
-          FREQ · 47.32MHz · BAND-S
-        </div>
-        <div className="font-mono-tight text-[10px] tracking-[0.3em] text-neutral-500">
-          {time}
-        </div>
+      <div
+        className={`mx-auto flex h-[4.25rem] max-w-6xl items-center gap-3 rounded-full border px-3 pl-4 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 sm:px-4 sm:pl-5 ${
+          scrolled || isOpen
+            ? "border-white/[0.12] bg-primary/85 shadow-[0_18px_52px_rgba(3,4,18,0.42)] backdrop-blur-2xl"
+            : "border-white/[0.1] bg-primary/40 shadow-[0_8px_36px_rgba(3,4,18,0.2)] backdrop-blur-lg"
+        }`}
+      >
+        <a
+          href="#home"
+          onClick={handleClose}
+          aria-label="Charan Mahato, back to home"
+          className="group flex min-h-11 shrink-0 items-center gap-3 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.14] bg-white/[0.06] font-body text-xs font-semibold tracking-[0.08em] text-white transition-colors duration-200 group-hover:border-lavender/45 group-hover:bg-lavender/15">
+            CM
+          </span>
+          <span className="flex flex-col">
+            <span className="font-body text-[13px] font-semibold tracking-[-0.02em] text-white sm:text-sm">
+              Charan Mahato
+            </span>
+            <span className="hidden text-[11px] font-medium tracking-[0.08em] text-neutral-400 sm:block">
+              Full-stack engineer
+            </span>
+          </span>
+        </a>
+
+        <nav aria-label="Primary navigation" className="mx-auto hidden xl:block">
+          <ul className="flex items-center gap-0.5">
+            {NAV_ITEMS.map((item) => renderNavLink(item, active))}
+          </ul>
+        </nav>
+
+        <a
+          href="#contact"
+          onClick={handleClose}
+          aria-current={active === "contact" ? "location" : undefined}
+          className={`ml-auto hidden min-h-11 shrink-0 items-center rounded-full px-5 text-sm font-semibold tracking-[-0.01em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 xl:flex ${
+            active === "contact"
+              ? "bg-lavender text-white"
+              : "bg-white text-primary hover:bg-neutral-100"
+          }`}
+        >
+          Contact
+        </a>
+
+        <button
+          type="button"
+          onClick={handleToggle}
+          aria-expanded={isOpen}
+          aria-controls="mobile-navigation"
+          aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
+          className="ml-auto flex min-h-11 items-center gap-2 rounded-full border border-white/[0.12] px-4 text-sm font-medium text-white transition-colors duration-200 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 xl:hidden"
+        >
+          <span>{isOpen ? "Close" : "Menu"}</span>
+          <span aria-hidden="true" className="flex w-4 flex-col gap-[5px]">
+            <span
+              className={`h-px w-full bg-current transition-transform duration-200 ${
+                isOpen ? "translate-y-[3px] rotate-45" : ""
+              }`}
+            />
+            <span
+              className={`h-px w-full bg-current transition-transform duration-200 ${
+                isOpen ? "-translate-y-[3px] -rotate-45" : ""
+              }`}
+            />
+          </span>
+        </button>
       </div>
 
-      {/* Main bar */}
-      <div className="mx-auto max-w-7xl px-6 lg:px-12">
-        <div className="flex items-center justify-between py-3">
-          {/* Callsign / logo */}
-          <a href="#home" className="group flex items-center gap-3">
-            <span className="relative flex items-center justify-center w-7 h-7 border border-lavender/50 rotate-45 group-hover:border-lavender transition-colors">
-              <span className="absolute inset-1.5 bg-lavender/80 group-hover:bg-aqua transition-colors" />
-            </span>
-            <div className="flex flex-col leading-none">
-              <span className="font-mono-tight text-[9px] tracking-[0.3em] text-neutral-500">
-                CALLSIGN
-              </span>
-              <span className="font-display-tight text-lg text-white tracking-[-0.02em]">
-                CHARAN · 977
-              </span>
-            </div>
-          </a>
-
-          {/* Desktop Nav */}
-          <nav className="hidden lg:block">
-            <ul className="flex items-center gap-1">
-              {NAV_ITEMS.map((item) => (
-                <NavItem key={item.id} item={item} active={active === item.id} />
-              ))}
-            </ul>
-          </nav>
-
-          {/* Mobile toggle */}
-          <button
-            onClick={handleToggle}
-            className="lg:hidden flex items-center gap-2 px-3 py-2 border border-white/10 hover:border-lavender/50 transition-colors"
-            aria-label="Toggle menu"
-          >
-            <span className="font-mono-tight text-[10px] tracking-[0.3em] text-neutral-300">
-              {isOpen ? "CLOSE" : "MENU"}
-            </span>
-            <span className="flex flex-col gap-1">
-              <span
-                className={`block w-4 h-px bg-white transition-transform ${isOpen ? "rotate-45 translate-y-[3px]" : ""}`}
-              />
-              <span
-                className={`block w-4 h-px bg-white transition-transform ${isOpen ? "-rotate-45 -translate-y-[3px]" : ""}`}
-              />
-            </span>
-          </button>
-        </div>
-
-        {/* Scroll progress bar — GSAP driven */}
-        <div
-          ref={progressRef}
-          className="h-px bg-gradient-to-r from-lavender via-aqua to-coral origin-left"
-          style={{ transform: "scaleX(0)" }}
-        />
-      </div>
-
-      {/* Mobile menu (stays motion/react for AnimatePresence) */}
       <AnimatePresence>
         {isOpen && (
           <motion.nav
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="overflow-hidden lg:hidden bg-primary/95 backdrop-blur-xl border-b border-white/5"
+            id="mobile-navigation"
+            aria-label="Mobile navigation"
+            initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+            transition={
+              reduceMotion
+                ? { duration: 0 }
+                : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
+            }
+            className="mx-auto mt-2 max-w-6xl overflow-hidden rounded-[1.5rem] border border-white/[0.12] bg-primary/95 p-2 shadow-[0_24px_68px_rgba(3,4,18,0.58)] backdrop-blur-2xl xl:hidden"
           >
-            <ul className="flex flex-col py-4 px-6">
-              {NAV_ITEMS.map((item) => (
-                <li key={item.id} className="border-b border-white/5 last:border-0">
-                  <a
-                    href={`#${item.id}`}
-                    onClick={handleClose}
-                    className="flex items-center justify-between py-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono-tight text-[10px] tracking-[0.2em] text-lavender">
-                        {item.code}
-                      </span>
-                      <span className="font-mono-tight text-xs tracking-[0.28em] text-white uppercase">
-                        {item.label}
-                      </span>
-                    </div>
-                    <span className="text-neutral-600">→</span>
-                  </a>
-                </li>
-              ))}
+            <ul className="grid gap-1 sm:grid-cols-2">
+              {NAV_ITEMS.map((item) =>
+                renderNavLink(item, active, handleClose),
+              )}
             </ul>
+            <a
+              href="#contact"
+              onClick={handleClose}
+              className="mt-2 flex min-h-12 items-center justify-center rounded-2xl bg-white px-5 text-sm font-semibold text-primary transition-colors duration-200 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              Contact
+            </a>
           </motion.nav>
         )}
       </AnimatePresence>

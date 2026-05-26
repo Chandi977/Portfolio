@@ -14,11 +14,11 @@ import { interpolate } from "../hooks/useGSAPBeat";
 
 /* ============================================================
    TRANSMISSION 04 // SERVICES
-   360vh pinned. Four beats:
-     1) INTRO     0.00 → 0.16
-     2) DECK      0.16 → 0.62   — 3 service modules travel horizontally
-     3) WORKFLOW  0.62 → 0.88   — 4-step engagement diagram draws across
-     4) STATUS    0.88 → 1.00   — availability strip + CTA
+   280vh pinned. Four beats:
+     1) INTRO     0.00 → 0.14
+     2) DECK      0.14 → 0.62   — 3 cards step into a fixed center slot
+     3) WORKFLOW  0.62 → 0.86   — 4-step engagement diagram draws across
+     4) STATUS    0.86 → 1.00   — availability strip + CTA
    ============================================================ */
 
 const WORKFLOW = [
@@ -34,29 +34,39 @@ const Freelance = () => (
     index="04"
     callsign="SERVICES"
     tone="aqua"
-    height={380}
+    height={360}
     beatLabels={["INTRO", "DECK", "WORKFLOW", "STATUS"]}
   >
     {(p) => <FreelanceBeats p={p} />}
   </PinnedStage>
 );
 
+/* Beat windows (parent progress 0→1)
+   INTRO    0.00 → 0.14
+   DECK     0.14 → 0.62   (48% of scroll — 3 stepped cards)
+   WORKFLOW 0.62 → 0.86
+   STATUS   0.86 → 1.00
+   Each beat's sub-progress range matches its peak window exactly. */
 const FreelanceBeats = ({ p }) => {
-  const beat1P = useSubProgress(p, 0.00, 0.13);
-  const deckP  = useSubProgress(p, 0.20, 0.60);
-  const beat3P = useSubProgress(p, 0.66, 0.84);
-  const beat4P = useSubProgress(p, 0.90, 0.99);
+  // Sub-progress completes ~70% through each beat's peak window so reveals
+  // finish with dwell time before the cross-fade to the next beat.
+  // Beat ranges share their fade boundaries (peakEnd of one = fadeInStart of
+  // the next) so beats cross-fade smoothly without a blank gap.
+  const beat1P = useSubProgress(p, 0.00, 0.10);
+  const deckP  = useSubProgress(p, 0.22, 0.58);
+  const beat3P = useSubProgress(p, 0.66, 0.82);
+  const beat4P = useSubProgress(p, 0.88, 0.97);
 
   return (
     <>
       {/* ════════ BEAT 1 — INTRO ════════ */}
-      <Beat progress={p} range={[0, 0, 0.16, 0.19]}>
+      <Beat progress={p} range={[0, 0, 0.16, 0.22]}>
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12 text-center">
           <div className="flex items-center gap-3 mb-8">
             <StatusDot tone="mint" />
             <MonoLabel tone="mint">ACCEPTING · Q2 / 2026</MonoLabel>
             <span className="block w-6 h-px bg-white/20" />
-            <MonoLabel tone="aqua">::CHANNEL · OPEN</MonoLabel>
+            <MonoLabel tone="aqua">::PIPELINE · OPEN</MonoLabel>
           </div>
           <h2 className="font-display-tight text-3xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.05] tracking-[-0.04em] text-white max-w-5xl">
             <WordReveal
@@ -65,26 +75,26 @@ const FreelanceBeats = ({ p }) => {
               revealWindow={0.85}
             />
           </h2>
-          <FadeIn progress={beat1P} start={0.7} end={1}>
+          <FadeIn progress={beat1P} start={0.55} end={0.75}>
             <p className="mt-8 text-neutral-400 max-w-2xl font-display-tight italic">
-              Three ways to bring me in. Scroll to see them slide through.
+              Three engagement modes. Scroll to step through each one.
             </p>
           </FadeIn>
         </div>
       </Beat>
 
-      {/* ════════ BEAT 2 — DECK (horizontal travel) ════════ */}
-      <Beat progress={p} range={[0.16, 0.20, 0.62, 0.65]}>
+      {/* ════════ BEAT 2 — DECK (stepped horizontal) ════════ */}
+      <Beat progress={p} range={[0.16, 0.22, 0.62, 0.68]}>
         <DeckBeat deckP={deckP} />
       </Beat>
 
       {/* ════════ BEAT 3 — WORKFLOW DIAGRAM ════════ */}
-      <Beat progress={p} range={[0.62, 0.66, 0.86, 0.89]}>
+      <Beat progress={p} range={[0.62, 0.68, 0.84, 0.90]}>
         <WorkflowBeat beat3P={beat3P} />
       </Beat>
 
       {/* ════════ BEAT 4 — STATUS + CTA ════════ */}
-      <Beat progress={p} range={[0.86, 0.90, 1.0, 1.0]}>
+      <Beat progress={p} range={[0.84, 0.90, 1.0, 1.0]}>
         <StatusBeat beat4P={beat4P} />
       </Beat>
     </>
@@ -103,65 +113,82 @@ const FadeIn = memo(function FadeIn({ progress, start, end, children }) {
   return <div ref={ref} style={{ opacity: 0 }}>{children}</div>;
 });
 
+/* ---------- useCardSpacing — resize-aware, returns px between card centers ---------- */
+function useCardSpacing() {
+  const [spacing, setSpacing] = useState(() =>
+    typeof window === "undefined" ? 540 : computeSpacing(window.innerWidth)
+  );
+  useEffect(() => {
+    const onResize = () => setSpacing(computeSpacing(window.innerWidth));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return spacing;
+}
+function computeSpacing(vw) {
+  // card width: min(420, 0.82·vw); spacing = cardWidth + breathing gap
+  const cardW = Math.min(420, vw * 0.82);
+  const gap = vw >= 768 ? 120 : vw * 0.18;
+  return cardW + gap;
+}
+
 /* ---------- DeckBeat ---------- */
 const DeckBeat = memo(function DeckBeat({ deckP }) {
-  const stripRef = useRef(null);
-
-  useEffect(() => {
-    if (!deckP) return;
-    return deckP.onChange((p) => {
-      if (stripRef.current) {
-        // Travel from 20vw to -80vw
-        const x = interpolate(p, [0, 1], [20, -80]);
-        stripRef.current.style.transform = `translateY(-50%) translateX(${x}vw)`;
-      }
-    });
-  }, [deckP]);
+  const spacing = useCardSpacing();
 
   return (
-    <div className="absolute inset-0 flex flex-col">
+    <div className="absolute inset-0">
       <div className="absolute top-24 left-1/2 -translate-x-1/2 flex items-center gap-3 z-30">
         <StatusDot tone="aqua" />
-        <MonoLabel tone="aqua">::DECK · 04.02 · 3 MODULES</MonoLabel>
+        <MonoLabel tone="aqua">::SERVICES · 04.02 · 3 MODULES</MonoLabel>
       </div>
 
-      <div
-        ref={stripRef}
-        className="absolute top-1/2 left-0 flex items-center gap-8 md:gap-12 lg:gap-20 pl-[10vw]"
-        style={{ transform: "translateY(-50%)", willChange: "transform" }}
-      >
-        {freelanceServices.map((s, i) => (
-          <ServiceCard key={s.title} service={s} index={i} total={freelanceServices.length} pDeck={deckP} />
-        ))}
-      </div>
-
+      {/* Centered frame — viewport-fixed target slot for the active card */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10">
         <div className="w-[min(420px,82vw)] h-[min(540px,72vh)] border border-lavender/15" />
       </div>
+
+      {/* Each card positions itself relative to the active index */}
+      {freelanceServices.map((s, i) => (
+        <ServiceCard
+          key={s.title}
+          service={s}
+          index={i}
+          total={freelanceServices.length}
+          spacing={spacing}
+          pDeck={deckP}
+        />
+      ))}
 
       <CardCounter pDeck={deckP} />
     </div>
   );
 });
 
-/* ---------- ServiceCard ---------- */
-const ServiceCard = memo(function ServiceCard({ service, index, total, pDeck }) {
+/* ---------- ServiceCard ----------
+   Each card self-centers via translate(-50%, -50%) and offsets horizontally
+   by its distance from the current active card (in px). Continuous
+   activeFloat ∈ [0, total-1] lets adjacent cards slide smoothly. */
+const ServiceCard = memo(function ServiceCard({ service, index, total, spacing, pDeck }) {
   const ref = useRef(null);
-  const center = (index + 0.5) / total;
+  const last = Math.max(1, total - 1);
 
   useEffect(() => {
     if (!pDeck) return;
     return pDeck.onChange((p) => {
       const el = ref.current;
       if (!el) return;
-      const scale = interpolate(p, [center - 0.4, center, center + 0.4], [0.78, 1.02, 0.78]);
-      const opacity = interpolate(p, [center - 0.4, center, center + 0.4], [0.35, 1, 0.35]);
-      const blur = interpolate(p, [center - 0.4, center, center + 0.4], [4, 0, 4]);
-      el.style.transform = `scale(${scale})`;
+      const activeFloat = p * last;                  // 0 → total-1
+      const distance = index - activeFloat;          // signed slots from center
+      const absDist = Math.min(1, Math.abs(distance));
+      const scale = interpolate(absDist, [0, 1], [1.02, 0.78]);
+      const opacity = interpolate(absDist, [0, 1], [1, 0.3]);
+      const blur = interpolate(absDist, [0, 1], [0, 4]);
+      el.style.transform = `translate(-50%, -50%) translateX(${distance * spacing}px) scale(${scale})`;
       el.style.opacity = opacity;
       el.style.filter = `blur(${blur}px)`;
     });
-  }, [pDeck, center]);
+  }, [pDeck, index, last, spacing]);
 
   const tones = ["lavender", "aqua", "coral"];
   const tone = tones[index % 3];
@@ -174,8 +201,15 @@ const ServiceCard = memo(function ServiceCard({ service, index, total, pDeck }) 
   return (
     <article
       ref={ref}
-      style={{ willChange: "transform, opacity, filter" }}
-      className={`relative shrink-0 w-[min(420px,82vw)] h-[min(540px,72vh)] starlog-clip border ${toneClasses.border} bg-gradient-to-b ${toneClasses.bg} to-primary p-7 md:p-8 flex flex-col`}
+      style={{
+        willChange: "transform, opacity, filter",
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: 20 - index,
+      }}
+      className={`w-[min(420px,82vw)] h-[min(540px,72vh)] starlog-clip border ${toneClasses.border} bg-gradient-to-b ${toneClasses.bg} to-primary p-7 md:p-8 flex flex-col`}
     >
       <span className={`absolute top-0 left-0 w-3 h-3 border-l border-t ${toneClasses.border}`} />
       <span className={`absolute top-0 right-0 w-3 h-3 border-r border-t ${toneClasses.border}`} />
@@ -212,8 +246,8 @@ const ServiceCard = memo(function ServiceCard({ service, index, total, pDeck }) 
       </ul>
 
       <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
-        <MonoLabel>READY</MonoLabel>
-        <MonoLabel tone={tone}>↗ ENGAGE</MonoLabel>
+        <MonoLabel>AVAILABLE</MonoLabel>
+        <MonoLabel tone={tone}>↗ HIRE</MonoLabel>
       </div>
     </article>
   );
@@ -225,7 +259,7 @@ const CardCounter = memo(function CardCounter({ pDeck }) {
   useEffect(() => {
     if (!pDeck) return;
     return pDeck.onChange((p) => {
-      setV(Math.min(3, Math.max(1, Math.floor(p * 3) + 1)));
+      setV(Math.min(3, Math.max(1, Math.round(p * 2) + 1)));
     });
   }, [pDeck]);
 
@@ -249,9 +283,10 @@ const WorkflowBeat = memo(function WorkflowBeat({ beat3P }) {
   useEffect(() => {
     if (!beat3P) return;
     return beat3P.onChange((p) => {
-      if (headerRef.current) headerRef.current.style.opacity = interpolate(p, [0, 0.15], [0, 1]);
-      if (lineRef.current) lineRef.current.style.transform = `scaleX(${interpolate(p, [0.1, 0.85], [0, 1])})`;
-      if (noteRef.current) noteRef.current.style.opacity = interpolate(p, [0.7, 1], [0, 1]);
+      if (headerRef.current) headerRef.current.style.opacity = interpolate(p, [0, 0.12], [0, 1]);
+      // Line and note complete well before sub=1.0 so the diagram dwells before fading.
+      if (lineRef.current) lineRef.current.style.transform = `scaleX(${interpolate(p, [0.05, 0.55], [0, 1])})`;
+      if (noteRef.current) noteRef.current.style.opacity = interpolate(p, [0.55, 0.70], [0, 1]);
     });
   }, [beat3P]);
 
@@ -259,7 +294,7 @@ const WorkflowBeat = memo(function WorkflowBeat({ beat3P }) {
     <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12">
       <div ref={headerRef} style={{ opacity: 0 }} className="flex items-center gap-3 mb-8">
         <StatusDot tone="coral" />
-        <MonoLabel tone="coral">::ENGAGEMENT · WORKFLOW</MonoLabel>
+        <MonoLabel tone="coral">::PROJECT · WORKFLOW</MonoLabel>
       </div>
 
       <h3 className="font-display-tight text-3xl md:text-5xl text-white tracking-[-0.035em] mb-14 text-center">
@@ -283,7 +318,7 @@ const WorkflowBeat = memo(function WorkflowBeat({ beat3P }) {
       </div>
 
       <p ref={noteRef} style={{ opacity: 0 }} className="mt-14 text-center text-neutral-500 font-mono-tight text-xs tracking-[0.32em] uppercase">
-        ◇ NO LONG SALES CYCLES · NO SLIDEWARE
+        ◇ AGILE SPRINTS · WORKING CODE · CONTINUOUS DEPLOY
       </p>
     </div>
   );
@@ -293,8 +328,9 @@ const WorkflowBeat = memo(function WorkflowBeat({ beat3P }) {
 const WorkflowNode = memo(function WorkflowNode({ step, index, pBeat }) {
   const ref = useRef(null);
   const dotRef = useRef(null);
-  const start = 0.15 + index * 0.16;
-  const end = start + 0.12;
+  // Tighter cascade: last node lands at sub-progress ~0.55 (was ~0.75)
+  const start = 0.10 + index * 0.12;
+  const end = start + 0.10;
 
   useEffect(() => {
     if (!pBeat) return;
@@ -350,21 +386,21 @@ const StatusBeat = memo(function StatusBeat({ beat4P }) {
     if (!beat4P) return;
     return beat4P.onChange((p) => {
       if (gridRef.current) {
-        gridRef.current.style.transform = `scaleY(${interpolate(p, [0, 0.5], [0, 1])})`;
+        gridRef.current.style.transform = `scaleY(${interpolate(p, [0, 0.35], [0, 1])})`;
       }
-      if (ctaRef.current) ctaRef.current.style.opacity = interpolate(p, [0.5, 1], [0, 1]);
+      if (ctaRef.current) ctaRef.current.style.opacity = interpolate(p, [0.35, 0.65], [0, 1]);
       if (hairRef.current) {
-        hairRef.current.style.transform = `scaleX(${interpolate(p, [0.5, 1], [0, 1])})`;
+        hairRef.current.style.transform = `scaleX(${interpolate(p, [0.50, 0.80], [0, 1])})`;
       }
     });
   }, [beat4P]);
 
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12">
-      <MonoLabel tone="mint" className="mb-6">END · TRANSMISSION 04</MonoLabel>
+      <MonoLabel tone="mint" className="mb-6">END · MODULE 04</MonoLabel>
 
       <h3 className="font-display-tight text-3xl md:text-5xl text-white tracking-[-0.035em] text-center max-w-3xl mb-10">
-        Three statuses, one channel.
+        Availability and engagement models.
       </h3>
 
       <div

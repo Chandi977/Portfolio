@@ -165,7 +165,7 @@ export const ChapterHeader = memo(function ChapterHeader({
       >
         <div className="flex items-center gap-3">
           <StatusDot tone={tone} />
-          <MonoLabel tone="neutral">TRANSMISSION · {index}</MonoLabel>
+          <MonoLabel tone="neutral">MODULE · {index}</MonoLabel>
           <span className="block w-8 h-px bg-white/15" />
           <MonoLabel tone={tone}>{callsign}</MonoLabel>
         </div>
@@ -323,7 +323,7 @@ export const BeatPanel = memo(function BeatPanel({
       initial={{ opacity: 0, y: 24 }}
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.7, delay, ease: [0.22, 1, 0.36, 1] }}
-      className={`relative rounded-sm border ${toneBorder} bg-gradient-to-b from-midnight/80 to-primary/80 backdrop-blur-sm p-6 md:p-7 transition-colors group ${className}`}
+      className={`relative rounded-sm border ${toneBorder} bg-gradient-to-b from-midnight/90 to-primary/90 p-6 md:p-7 transition-colors group ${className}`}
     >
       <span className="absolute top-0 left-0 w-3 h-3 border-l border-t border-current opacity-50" />
       <span className="absolute top-0 right-0 w-3 h-3 border-r border-t border-current opacity-50" />
@@ -512,7 +512,7 @@ export const PinnedStage = memo(function PinnedStage({
         {!hideHeader && (
           <div className="absolute top-24 md:top-28 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-3 font-mono-tight text-[9px] md:text-[10px] tracking-[0.4em] md:tracking-[0.5em] text-neutral-500 z-40 whitespace-nowrap px-4">
             <span className="hidden sm:block w-6 h-px bg-lavender/60" />
-            <span>TRANSMISSION · {index}</span>
+            <span>MODULE · {index}</span>
             <span className="block w-4 md:w-6 h-px bg-white/15" />
             <span className={toneText}>{callsign}</span>
             <span className="hidden sm:block w-6 h-px bg-aqua/60" />

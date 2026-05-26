@@ -104,8 +104,8 @@ const Experiences = () => {
             <Hairline />
           </div>
           <div className="mt-3 flex justify-between font-mono-tight text-[10px] tracking-[0.4em] text-neutral-500 max-w-[min(640px,80vw)] mx-auto">
-            <span>END · TRANSMISSION 06</span>
-            <span>↓ 07 · INTERCEPTS</span>
+            <span>END · MODULE 06</span>
+            <span>↓ 07 · REVIEWS</span>
           </div>
         </div>
       </div>
@@ -130,9 +130,9 @@ const ManifestHeader = memo(function ManifestHeader({ yearRange, count }) {
         className="flex items-center gap-3 mb-6"
       >
         <StatusDot tone="lavender" />
-        <MonoLabel tone="neutral">TRANSMISSION · 06</MonoLabel>
+        <MonoLabel tone="neutral">MODULE · 06</MonoLabel>
         <span className="block w-8 h-px bg-white/15" />
-        <MonoLabel tone="lavender">ARCHIVE</MonoLabel>
+        <MonoLabel tone="lavender">EXPERIENCE</MonoLabel>
       </motion.div>
 
       <motion.h2
@@ -141,8 +141,8 @@ const ManifestHeader = memo(function ManifestHeader({ yearRange, count }) {
         transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
         className="font-display-tight text-4xl md:text-6xl lg:text-7xl text-white tracking-[-0.04em] leading-[0.95]"
       >
-        Mission <span className="italic text-lavender">dossiers,</span>
-        <br className="hidden md:block" /> declassified.
+        Engineering <span className="italic text-lavender">history,</span>
+        <br className="hidden md:block" /> committed.
       </motion.h2>
 
       <motion.p
@@ -151,8 +151,8 @@ const ManifestHeader = memo(function ManifestHeader({ yearRange, count }) {
         transition={{ duration: 0.5, delay: 0.3 }}
         className="mt-5 max-w-xl text-neutral-400 text-base md:text-lg leading-relaxed"
       >
-        Every engagement, every role, every measurable outcome — pulled from
-        the archive and stamped for review.
+        Every role, every system, every measurable outcome — pulled from the
+        commit history and ready for code review.
       </motion.p>
 
       <motion.div
@@ -164,7 +164,7 @@ const ManifestHeader = memo(function ManifestHeader({ yearRange, count }) {
       >
         <Slat label="FILES" value={String(count).padStart(2, "0")} tone="lavender" />
         <Slat label="SPAN" value={yearRange} tone="aqua" />
-        <Slat label="STATUS" value="ON FILE" tone="mint" badge />
+        <Slat label="STATUS" value="ACTIVE" tone="mint" badge />
       </motion.div>
     </header>
   );
@@ -291,7 +291,7 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
             <div className="relative flex items-stretch border-b border-white/10">
               <div className={`px-4 py-2.5 ${tokens.bg} bg-opacity-20 border-r border-white/10 flex items-center gap-2`}>
                 <span className={`font-mono-tight text-[9px] tracking-[0.3em] ${tokens.accent} uppercase`}>
-                  FILE · {fileNo}
+                  ENTRY · {fileNo}
                 </span>
               </div>
               <div className="flex-1 px-4 py-2.5 flex items-center gap-3 overflow-hidden">
@@ -318,11 +318,11 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
                   className={`absolute -top-3 right-4 px-3 py-1 border-2 ${tokens.border} ${tokens.accent} font-display-tight text-2xl md:text-3xl tracking-[0.1em] pointer-events-none select-none italic`}
                   aria-hidden
                 >
-                  {item.type === "Full-time" ? "ACTIVE" : "ARCHIVED"}
+                  {item.type === "Full-time" ? "CURRENT" : "SHIPPED"}
                 </motion.div>
 
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <MonoLabel tone={tone}>ROLE · DECLARED</MonoLabel>
+                  <MonoLabel tone={tone}>ROLE · SHIPPED</MonoLabel>
                   <span className={`block w-1 h-1 rounded-full ${tokens.bg}`} />
                   <MonoLabel>{item.date}</MonoLabel>
                 </div>
@@ -349,7 +349,7 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
                 {item.contents && item.contents.length > 0 && (
                   <div className="mt-5 md:mt-6 border-l-2 border-white/10 pl-4">
                     <MonoLabel tone="aqua" className="block mb-2">
-                      OPS · LOG
+                      COMMIT · LOG
                     </MonoLabel>
                     <ul className="space-y-1.5">
                       {item.contents.slice(0, 4).map((c, i) => (
@@ -362,7 +362,7 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
                 {item.technologies && (
                   <div className="mt-5 md:mt-6 pt-4 border-t border-white/10">
                     <div className="flex items-center gap-3 mb-2.5">
-                      <MonoLabel>▶ ROUTES · CLEARED</MonoLabel>
+                      <MonoLabel>▶ STACK · USED</MonoLabel>
                       <span className="block flex-1 h-px bg-white/5" />
                       <MonoLabel tone="neutral">
                         {item.technologies.length} TAGS
@@ -387,7 +387,7 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
 
                 <div className="p-5 md:p-6 h-full flex flex-col">
                   <div className="flex items-center justify-between mb-4">
-                    <MonoLabel tone={tone}>INTEL · STUB</MonoLabel>
+                    <MonoLabel tone={tone}>METRICS · SNAPSHOT</MonoLabel>
                     <SealStamp tone={tone} index={index} />
                   </div>
 
@@ -406,7 +406,7 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
                     </ul>
                   ) : (
                     <div className="flex-1 flex items-center justify-center text-neutral-600 italic font-display-tight text-sm">
-                      no metrics on file
+                      no metrics logged
                     </div>
                   )}
 
@@ -421,7 +421,7 @@ const DossierEntry = memo(function DossierEntry({ item, index, total, tone }) {
             {/* BOTTOM micro-strip */}
             <div className="relative border-t border-white/10 flex items-center justify-between px-4 py-2 bg-black/30">
               <span className="font-mono-tight text-[9px] tracking-[0.4em] text-neutral-600 uppercase">
-                ◇ END · OF · FILE
+                ◇ END · OF · ENTRY
               </span>
               <span className={`font-mono-tight text-[9px] tracking-[0.32em] ${tokens.accent} uppercase`}>
                 {fileNo}

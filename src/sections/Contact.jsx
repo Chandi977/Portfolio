@@ -22,25 +22,25 @@ import { interpolate } from "../hooks/useGSAPBeat";
    ============================================================ */
 
 const BOOT_LINES = [
-  "> mounting /dev/uplink",
-  "> handshake.aes256 :: OK",
-  "> opening channel · 47.32MHz",
-  "> negotiating bitrate · 9600/baud",
-  "> linking peer :: chandi.charan.977",
+  "> npm run contact",
+  "> tls handshake :: OK",
+  "> opening tcp://contact:443",
+  "> negotiating http/2 keep-alive",
+  "> auth user :: chandi.charan.dev",
   "> ready",
 ];
 
 const HANDSHAKE_SYSTEMS = [
-  { code: "ENC", label: "ENCRYPTION", tone: "lavender" },
+  { code: "TLS", label: "ENCRYPTION", tone: "lavender" },
   { code: "AUTH", label: "AUTHENTICATION", tone: "aqua" },
-  { code: "RX", label: "RECEIVER", tone: "mint" },
+  { code: "API", label: "API SERVER", tone: "mint" },
 ];
 
 const Contact = () => (
   <PinnedStage
     id="contact"
     index="08"
-    callsign="UPLINK"
+    callsign="CONTACT"
     tone="mint"
     height={400}
     beatLabels={["BOOT", "HANDSHAKE", "FIELDS", "ACTIVE"]}
@@ -50,10 +50,12 @@ const Contact = () => (
 );
 
 const ContactBeats = ({ p }) => {
-  const bootP = useSubProgress(p, 0, 0.20);
-  const shakeP = useSubProgress(p, 0.20, 0.40);
-  const fieldsP = useSubProgress(p, 0.40, 0.80);
-  const activeP = useSubProgress(p, 0.78, 0.86);
+  // Sub-progress ranges complete before each beat's fade-out so reveals
+  // finish with dwell time on screen.
+  const bootP = useSubProgress(p, 0, 0.16);
+  const shakeP = useSubProgress(p, 0.22, 0.36);
+  const fieldsP = useSubProgress(p, 0.42, 0.76);
+  const activeP = useSubProgress(p, 0.78, 0.88);
 
   // Track whether form should be interactive (after beat 4 starts)
   const [interactive, setInteractive] = useState(false);
@@ -65,7 +67,7 @@ const ContactBeats = ({ p }) => {
   return (
     <>
       {/* ════ BEAT 1 — BOOT ════ */}
-      <Beat progress={p} range={[0, 0, 0.18, 0.22]}>
+      <Beat progress={p} range={[0, 0, 0.20, 0.25]}>
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12">
           <div className="w-full max-w-2xl border border-white/10 starlog-clip bg-primary p-6 md:p-8">
             <div className="flex items-center justify-between pb-3 mb-5 border-b border-white/10">
@@ -73,7 +75,7 @@ const ContactBeats = ({ p }) => {
                 <span className="block w-2.5 h-2.5 rounded-full bg-coral" />
                 <span className="block w-2.5 h-2.5 rounded-full bg-sand" />
                 <span className="block w-2.5 h-2.5 rounded-full bg-mint" />
-                <MonoLabel className="ml-3">/uplink/boot.sh</MonoLabel>
+                <MonoLabel className="ml-3">~/contact $ ./init.sh</MonoLabel>
               </div>
               <MonoLabel tone="lavender">BOOTING</MonoLabel>
             </div>
@@ -98,11 +100,11 @@ const ContactBeats = ({ p }) => {
       </Beat>
 
       {/* ════ BEAT 2 — HANDSHAKE ════ */}
-      <Beat progress={p} range={[0.18, 0.22, 0.38, 0.42]}>
+      <Beat progress={p} range={[0.20, 0.25, 0.40, 0.45]}>
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12 text-center">
           <MonoLabel tone="aqua" className="mb-8">::HANDSHAKE · 08.02</MonoLabel>
           <h3 className="font-display-tight italic text-4xl md:text-6xl text-white tracking-[-0.04em] mb-12 max-w-3xl">
-            Channel opening.
+            Connection established.
           </h3>
 
           <div className="grid grid-cols-3 gap-4 md:gap-8 max-w-3xl w-full">
@@ -111,16 +113,16 @@ const ContactBeats = ({ p }) => {
             ))}
           </div>
 
-          <FadeIn progress={shakeP} start={0.75} end={1}>
+          <FadeIn progress={shakeP} start={0.55} end={0.70}>
             <p className="mt-12 font-mono-tight text-xs tracking-[0.35em] text-mint uppercase">
-              ✓ ALL SYSTEMS NOMINAL
+              ✓ ALL SYSTEMS GREEN
             </p>
           </FadeIn>
         </div>
       </Beat>
 
       {/* ════ BEAT 3+4 — FORM ════ */}
-      <Beat progress={p} range={[0.38, 0.44, 1.0, 1.0]}>
+      <Beat progress={p} range={[0.40, 0.46, 1.0, 1.0]}>
         <ContactForm
           fieldsP={fieldsP}
           activeP={activeP}
@@ -133,8 +135,8 @@ const ContactBeats = ({ p }) => {
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[min(640px,80vw)] z-30">
           <Hairline />
           <div className="mt-3 flex justify-between font-mono-tight text-[10px] tracking-[0.4em] text-neutral-500">
-            <span>END · TRANSMISSION 08</span>
-            <span>↓ END · OF · FEED</span>
+            <span>END · MODULE 08</span>
+            <span>↓ END · OF · LOG</span>
           </div>
         </div>
       </Beat>
@@ -157,7 +159,8 @@ const FadeIn = memo(function FadeIn({ progress, start, end, children }) {
 /* ---------- BootLine ---------- */
 const BootLine = memo(function BootLine({ line, index, total, bootP }) {
   const ref = useRef(null);
-  const start = (index / total) * 0.85;
+  // Tighter cascade: last line lands at sub-progress ~0.65 (was ~0.90)
+  const start = (index / total) * 0.60;
   const end = start + 0.05;
 
   useEffect(() => {
@@ -187,7 +190,7 @@ const BootPercent = memo(function BootPercent({ bootP }) {
   const [pct, setPct] = useState(0);
   useEffect(() => {
     if (!bootP) return;
-    return bootP.onChange((v) => setPct(Math.round(v * 100)));
+    return bootP.onChange((v) => setPct(Math.min(100, Math.round(interpolate(v, [0, 0.70], [0, 100])))));
   }, [bootP]);
   return <>{String(pct).padStart(3, "0")}%</>;
 });
@@ -198,7 +201,7 @@ const BootBar = memo(function BootBar({ bootP }) {
   useEffect(() => {
     if (!bootP) return;
     return bootP.onChange((p) => {
-      if (ref.current) ref.current.style.width = `${interpolate(p, [0, 0.9], [0, 100])}%`;
+      if (ref.current) ref.current.style.width = `${interpolate(p, [0, 0.70], [0, 100])}%`;
     });
   }, [bootP]);
   return (
@@ -219,8 +222,9 @@ const SystemLight = memo(function SystemLight({ system, index, shakeP }) {
   const dotRef = useRef(null);
   const okRef = useRef(null);
 
-  const start = 0.1 + index * 0.2;
-  const end = start + 0.12;
+  // Tighter cascade: last system lands at sub-progress ~0.47 (was ~0.62)
+  const start = 0.05 + index * 0.16;
+  const end = start + 0.10;
 
   useEffect(() => {
     if (!shakeP) return;
@@ -318,11 +322,11 @@ const ContactForm = memo(function ContactForm({ fieldsP, activeP, interactive })
         );
         setIsLoading(false);
         setFormData({ name: "", email: "", message: "" });
-        showMsg("success", "Uplink received. I'll reply soon.");
+        showMsg("success", "Message received. I'll reply soon.");
       } catch (error) {
         setIsLoading(false);
         console.error("Email sending failed:", error);
-        showMsg("danger", "Transmission failed. Please try again.");
+        showMsg("danger", "Request failed. Please try again.");
       }
     },
     [formData, showMsg],
@@ -346,7 +350,7 @@ const ContactForm = memo(function ContactForm({ fieldsP, activeP, interactive })
             <span className="block w-2.5 h-2.5 rounded-full bg-coral" />
             <span className="block w-2.5 h-2.5 rounded-full bg-sand" />
             <span className="block w-2.5 h-2.5 rounded-full bg-mint" />
-            <MonoLabel className="ml-3">/uplink/transmit.sh</MonoLabel>
+            <MonoLabel className="ml-3">~/contact $ POST /api/message</MonoLabel>
           </div>
           <div className="flex items-center gap-2">
             <StatusDot tone={interactive ? "mint" : "aqua"} />
@@ -358,17 +362,17 @@ const ContactForm = memo(function ContactForm({ fieldsP, activeP, interactive })
 
         <form onSubmit={handleSubmit}>
           <ScrollField
-            label="CALLSIGN · NAME" code="08.01" id="name" name="name" type="text"
+            label="USER · NAME" code="08.01" id="name" name="name" type="text"
             placeholder="enter your name…" value={formData.name} onChange={handleChange}
             range={[0.00, 0.25]} fieldsP={fieldsP} interactive={interactive}
           />
           <ScrollField
-            label="RETURN · ADDRESS" code="08.02" id="email" name="email" type="email"
+            label="EMAIL · ADDRESS" code="08.02" id="email" name="email" type="email"
             placeholder="you@example.com" value={formData.email} onChange={handleChange}
             range={[0.25, 0.55]} fieldsP={fieldsP} interactive={interactive}
           />
           <ScrollField
-            label="PAYLOAD · MESSAGE" code="08.03" id="message" name="message"
+            label="YOUR · MESSAGE" code="08.03" id="message" name="message"
             placeholder="what are you building? what do you need? when?"
             value={formData.message} onChange={handleChange}
             range={[0.55, 0.95]} fieldsP={fieldsP} interactive={interactive} textarea
@@ -380,7 +384,7 @@ const ContactForm = memo(function ContactForm({ fieldsP, activeP, interactive })
             <div className="flex items-center gap-2">
               <StatusDot tone="lavender" />
               <MonoLabel tone="lavender">
-                PAYLOAD · {formData.message.length} BYTES
+                BODY · {formData.message.length} CHARS
               </MonoLabel>
             </div>
             <motion.button
@@ -393,7 +397,7 @@ const ContactForm = memo(function ContactForm({ fieldsP, activeP, interactive })
               className="group relative inline-flex items-center justify-between gap-4 border border-mint/50 hover:border-mint hover:bg-mint/5 px-6 py-3 transition-all disabled:cursor-not-allowed min-w-[240px] shadow-[0_0_24px_-12px_rgba(87,219,150,0.6)]"
             >
               <span className="font-mono-tight text-xs tracking-[0.32em] text-white uppercase">
-                {isLoading ? "TRANSMITTING…" : "▶ TRANSMIT"}
+                {isLoading ? "SENDING…" : "▶ SEND"}
               </span>
               <span className="text-mint">
                 {isLoading ? (

@@ -240,9 +240,9 @@ const OrbitalDial = ({ progress }) => {
       className="absolute left-1/2 top-1/2 w-[min(86vmin,640px)] h-[min(86vmin,640px)]"
       style={{ opacity: 0, transform: "translate(-50%, -50%)", willChange: "transform, opacity" }}
       role="img"
-      aria-label="Active radar plot tracking three system contacts with one locked target"
+      aria-label="Active stack dashboard tracking three running services with one pinned focus"
     >
-      <title>Active radar plot: three contacts tracked, target one locked</title>
+      <title>Active stack dashboard: three services tracked, one pinned</title>
       <defs>
         <radialGradient id="dialCore" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor="rgba(122,87,219,0.35)" />
@@ -338,10 +338,10 @@ const OrbitalDial = ({ progress }) => {
         <path d="M -105 196 H -72 M 72 196 H 105" stroke="rgba(51,194,204,0.42)" />
         <rect x="-68" y="184" width="136" height="27" rx="2" fill="rgba(3,4,18,0.84)" stroke="rgba(51,194,204,0.18)" />
         <text x="0" y="195" textAnchor="middle" fontSize="7.5" letterSpacing="2.8" fill="rgba(51,194,204,0.82)" fontFamily="Space Mono, monospace">
-          RADAR / ACTIVE
+          STACK / ACTIVE
         </text>
         <text x="0" y="205" textAnchor="middle" fontSize="5.8" letterSpacing="1.6" fill="rgba(155,128,245,0.72)" fontFamily="Space Mono, monospace">
-          03 CONTACTS / 01 LOCK
+          03 SERVICES / 01 FOCUS
         </text>
       </g>
     </svg>
